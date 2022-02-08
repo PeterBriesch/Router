@@ -7,7 +7,7 @@ using namespace std;
 namespace fs = std::filesystem;
 using json = nlohmann::json;
 
-#define SERVER_PORT 2180
+#define SERVER_PORT 2181
 
 
 /* Loads Hash table from json files stores in ./index/ */
@@ -80,7 +80,7 @@ DataTable loadDataTable(void){
 
 }
 
-void StartServer(){
+void StartServer(int port){
     httplib::Server svr;
 
     //Hash table 
@@ -233,9 +233,10 @@ void StartServer(){
 
     });
 
-    cout << "\nNode on port "+ to_string(SERVER_PORT)+ "\n" << endl;
 
-    svr.listen("0.0.0.0", SERVER_PORT); 
+    cout << "\nNode on port "+ to_string(port)+ "\n" << endl;
+
+    svr.listen("0.0.0.0", port); 
 }
 
 

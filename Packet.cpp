@@ -19,8 +19,8 @@ class Packet
             std::cout << pkt.header.version << " | " << pkt.header.flowLabel << std::endl;
             std::cout << pkt.header.length << " | " << pkt.header.hopLimit << std::endl;
             std::cout << pkt.header.saddr << std::endl;
-            std::cout << reinterpret_cast<char *>(pkt.header.daddr) << std::endl;
-            std::cout << pkt.payload.payload << std::endl;
+            std::cout << std::hex << pkt.header.daddr << std::endl;
+            std::cout << std::hex << pkt.payload.payload << std::endl;
         };
 
         std::string get_dstAddress(){
@@ -46,12 +46,14 @@ class Packet
 
 
             //Build header
-            header = buildHeader(saddr, daddr);
             payload = buildPayload(data);
+            pkt.payload = payload;
+            header = buildHeader(saddr, daddr);
+            
             
 
             pkt.header = header;
-            pkt.payload = payload;
+            
 
             return;
         }
@@ -64,7 +66,7 @@ class Packet
 
             uint8_t version=0;
             uint32_t flowLabel=0;
-            uint16_t length=0;
+            uint16_t length=sizeof(pkt.payload);
             uint8_t nextHeader=0;
             uint8_t hopLimit=0;
     

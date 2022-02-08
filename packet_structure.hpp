@@ -1,6 +1,8 @@
 #pragma once
 #include <iostream>
 #include <cstring>
+#include "boost/lexical_cast.hpp"
+#include <inttypes.h>
 namespace net
 {
     namespace Packet

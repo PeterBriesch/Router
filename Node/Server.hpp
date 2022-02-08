@@ -15,6 +15,6 @@
 #include "include/httplib.h"
 #include <stack>
 
-void StartServer();
+void StartServer(int a);
 HashTable loadHashTable(void);
 DataTable loadDataTable(void);
