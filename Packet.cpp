@@ -11,7 +11,7 @@ class Packet
 
     public:
 
-        Packet(uint32_t saddr, string daddr, uint64_t data){packet_builder(saddr, daddr, data);}
+        Packet(uint32_t saddr, unsigned char daddr[16], uint64_t data){packet_builder(saddr, daddr, data);}
 
         Packet(net::Packet::packet packet){pkt = packet;}
 
@@ -19,8 +19,8 @@ class Packet
             std::cout << pkt.header.version << " | " << pkt.header.flowLabel << std::endl;
             std::cout << pkt.header.length << " | " << pkt.header.hopLimit << std::endl;
             std::cout << pkt.header.saddr << std::endl;
-            std::cout << std::hex << pkt.header.daddr << std::endl;
-            std::cout << std::hex << pkt.payload.payload << std::endl;
+            std::cout << pkt.header.daddr << std::endl;
+            std::cout << pkt.payload.payload << std::endl;
         };
 
         std::string get_dstAddress(){
@@ -40,7 +40,7 @@ class Packet
 
         }
 
-        void packet_builder(uint32_t saddr, string daddr, uint64_t data){
+        void packet_builder(uint32_t saddr, unsigned char daddr[16], uint64_t data){
             net::Packet::header header;
             net::Packet::payload payload;
 
@@ -62,7 +62,7 @@ class Packet
             return pkt;
         }
     private:
-        net::Packet::header buildHeader(uint32_t saddr, string daddr){
+        net::Packet::header buildHeader(uint32_t saddr, unsigned char daddr[16]){
 
             uint8_t version=0;
             uint32_t flowLabel=0;
@@ -71,8 +71,7 @@ class Packet
             uint8_t hopLimit=0;
     
             net::Packet::header header = {version, flowLabel, length, nextHeader, hopLimit, saddr};
-            strcpy((char*)header.daddr, daddr.c_str());
-            // memcpy(header.daddr, c, sizeof(unsigned char[16]));
+            memcpy(header.daddr, daddr, sizeof(unsigned char[16]));
 
             return header;
         }

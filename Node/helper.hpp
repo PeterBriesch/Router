@@ -41,4 +41,22 @@ bool isMatch(string rotation, string target);
 HashBlock match(string source, string data, string target, string user, int nonce);
 HashBlock rotation(string source);
 
+template <class T>
+T to_int(string& hash){
+    
+    T i = std::stoul(hash, nullptr, 16);
+    
+    return i;
+}
+
+template <class T>
+string to_hash(T &i){
+
+    std::stringstream stream;
+    stream << std::hex << i;
+    string hash(stream.str());
+
+    return hash;
+
+}
 

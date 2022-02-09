@@ -156,7 +156,7 @@ class Client :public boost::enable_shared_from_this<Client>
     Client(boost::asio::io_service &io_service, int port, string address, int bindPort): socket(io_service){
         try{
             socket.open(boost::asio::ip::tcp::v4());
-            socket.bind(tcp::endpoint(boost::asio::ip::address::from_string(address), bindPort));
+            socket.bind(tcp::endpoint(socket.local_endpoint().address(), bindPort));
             socket.connect(tcp::endpoint(boost::asio::ip::address::from_string(address), port));
             cout << "[21e8::Prosumer] Connection on : " << address << ":" << port << endl;;
             cout << "[21e8::Prosumer] Started on port: " << socket.remote_endpoint().port() << endl;
@@ -183,15 +183,16 @@ class Client :public boost::enable_shared_from_this<Client>
 
             uint64_t hash;
             char* end;
+            unsigned char dest[16];
             pkt.header.saddr = ip_int;
             //convert counter to string
             stringstream ss;
             ss << count;
 
             //create data to put into packet
-            hash = strtoull(hashFunction(ss.str()).substr(0, 16).c_str(), &end, 16);
+            hash = strtoul(hashFunction(ss.str()).substr(0, 16).c_str(), &end, 16);
             Packet packet (pkt);
-            packet.packet_builder(ip_int, "bcaf48cbef7c9453", hash);
+            packet.packet_builder(ip_int, dest, hash);
 
             net::Packet::packet snd_pkt = packet.get_packet();
 
@@ -293,11 +294,13 @@ class Client :public boost::enable_shared_from_this<Client>
 
             cout << "\nBuilding response packet" << endl;
             //convert src address of rcv_packet to string and hash
-            string res_dstaddr = "10.147.20.40:" + to_string(temp.get_srcAddress());
-            res_dstaddr = hashFunction(res_dstaddr).substr(0,16);
+            string address = "10.147.20.40:" + to_string(temp.get_srcAddress());
+            address = hashFunction(address).substr(0,16);
+            unsigned char res_dstaddr[16];
+            memcpy(res_dstaddr, address.c_str(), sizeof(unsigned char[16]));
 
             //set src address to local endpoint
-            int res_srcaddr = socket.local_endpoint().port();
+            uint32_t res_srcaddr = socket.local_endpoint().port();
             //set data 
             uint64_t data = 9999;
             //Build packet

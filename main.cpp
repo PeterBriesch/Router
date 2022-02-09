@@ -172,6 +172,11 @@ int main(int argc, char const * argv[]){
 
             // }
             ImGui::Begin("My Window", &show_my_window);
+
+            const ImGuiViewport* main_viewport = ImGui::GetMainViewport();
+            ImGui::SetNextWindowPos(ImVec2(main_viewport->WorkPos.x + 650, main_viewport->WorkPos.y + 20), ImGuiCond_FirstUseEver);
+            ImGui::SetNextWindowSize(ImVec2(550, 680), ImGuiCond_FirstUseEver);
+
             ImGui::Text("Console for viewing all connected clients");
             static int port = 8081;
             static int node_port = 2180;
@@ -249,10 +254,7 @@ int main(int argc, char const * argv[]){
                     ImGui::TableNextColumn();
                     ImGui::Text("%d", p.header.saddr);
                     ImGui::TableNextColumn();
-                    stringstream os;
-                    os << std::hex << p.header.daddr;
-                    string dest = os.str();
-                    ImGui::Text(dest.c_str());
+                    ImGui::Text("%s", p.header.daddr);
                     ImGui::TableNextColumn();
                     ImGui::Text("TCP");
                     index++;
@@ -270,8 +272,8 @@ int main(int argc, char const * argv[]){
             }
 
             //Parse uint64_t payload as string
-            char payload_out[1024];
-            sprintf(payload_out, "%" PRIx64, payload);
+            string payload_out = to_hash<uint64_t>(payload);
+            
 
             // sprintf(payload_out, "%" PRIx64, payload);
 
@@ -279,7 +281,7 @@ int main(int argc, char const * argv[]){
 
             ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(0, 0, 0, 100));
             ImGui::BeginChild("Red", outer_size_value, true, ImGuiWindowFlags_None);
-            ImGui::TextWrapped(payload_out);
+            ImGui::TextWrapped("%s", payload_out.c_str());
             ImGui::EndChild();
             bool child_is_hovered = ImGui::IsItemHovered();
             ImVec2 child_rect_min = ImGui::GetItemRectMin();

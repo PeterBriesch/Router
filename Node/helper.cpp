@@ -71,20 +71,21 @@ int to_int(string s){
 json to_json(HashBlock &h){
 
     json j = {
-                    {h.rotation, {
-                        {"datahash", h.dataHash},
-                        {"n", to_string(h.nonce)},
-                        {"rotation", h.rotation},
-                        {"source", h.source},
-                        {"user", h.usr},
-                        {"target", h.target}
-                    }}   
-                };
+                {h.rotation, {
+                    {"datahash", h.dataHash},
+                    {"n", to_string(h.nonce)},
+                    {"rotation", h.rotation},
+                    {"source", h.source},
+                    {"user", h.usr},
+                    {"target", h.target}
+                }}   
+            };
 
 
     return j;
 
 }
+
 
 void writeToJson(HashBlock h, string dir){
     json j;

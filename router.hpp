@@ -58,6 +58,8 @@ class cli_handler : public boost::enable_shared_from_this<cli_handler>
             cache = &cache_f;
             //copy address to cli_id
             cli_id = *id;
+
+            //Read routing table (CURRENTLY NOT BEING USED)
             std::ifstream inFile;
             inFile.open("./table.txt");
             if(!inFile){
@@ -71,6 +73,7 @@ class cli_handler : public boost::enable_shared_from_this<cli_handler>
                 inFile >> value;
                 routingTable.emplace(key, value);
             }
+            
         }
         ~cli_handler(){};
 
