@@ -10,7 +10,6 @@
 #include <cryptopp/hex.h>
 #include <cryptopp/sha.h>
 #include <cryptopp/files.h>
-#include <boost/unordered_map.hpp>
 
 using namespace std;
 using json = nlohmann::json;

@@ -38,12 +38,12 @@ class cli_handler : public boost::enable_shared_from_this<cli_handler>
         typedef boost::shared_ptr<cli_handler> pointer;
 
         //Constructor
-        cli_handler(io_service& io_service): sock(io_service){
+        cli_handler(tcp::socket& io_service): sock(std::move(io_service)){
             
         };
 
         // creating the pointer
-        static pointer create(io_service& io_service)
+        static pointer create(tcp::socket& io_service)
         {
             return pointer(new cli_handler(io_service));
         };
@@ -109,12 +109,22 @@ class Server
     void start_accept()
     {
         // socket
-        cli_handler::pointer connection = cli_handler::create(acceptor_.get_io_service());
+        // cli_handler::pointer connection = cli_handler::create(acceptor_.get_io_service());
 
         // asynchronous accept operation and wait for a new connection.
-        acceptor_.async_accept(connection->socket(),
-            boost::bind(&Server::handle_accept, this, connection,
-            boost::asio::placeholders::error));
+        // acceptor_.async_accept(connection->socket(),
+        //     boost::bind(&Server::handle_accept, this, connection,
+        //     boost::asio::placeholders::error));
+        acceptor_.async_accept(
+            [this](boost::system::error_code er, tcp::socket socket)
+            {
+                if(!er){
+                    cli_handler::pointer connection = cli_handler::create(socket);
+                    handle_accept(connection);
+
+                }
+            }
+        );
         
     }
     public:
@@ -123,7 +133,7 @@ class Server
     {
         start_accept();
     }
-    void handle_accept(cli_handler::pointer connection, const boost::system::error_code& err)
+    void handle_accept(cli_handler::pointer connection)
     {
 
         try{
@@ -132,9 +142,9 @@ class Server
         {
             std::cerr << e.what() << endl;
         }
-        if (!err) {
+        
         connection->start();
-        }
+        
         start_accept();
     }
 };
@@ -159,7 +169,7 @@ class Client :public boost::enable_shared_from_this<Client>
             socket.bind(tcp::endpoint(socket.local_endpoint().address(), bindPort));
             socket.connect(tcp::endpoint(boost::asio::ip::address::from_string(address), port));
             cout << "[21e8::Prosumer] Connection on : " << address << ":" << port << endl;;
-            cout << "[21e8::Prosumer] Started on port: " << socket.remote_endpoint().port() << endl;
+            cout << "[21e8::Prosumer] Started on port: " << socket.local_endpoint().port() << endl;
             run();
             
 
@@ -183,7 +193,7 @@ class Client :public boost::enable_shared_from_this<Client>
 
             uint64_t hash;
             char* end;
-            unsigned char dest[16];
+            unsigned char dest[16] = "bcaf48cbef7c945";
             pkt.header.saddr = ip_int;
             //convert counter to string
             stringstream ss;

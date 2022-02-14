@@ -23,8 +23,11 @@ RUN apt-get install -y\
     autotools-dev\
     libicu-dev\
     g++\
-    libbz2-dev
+    libbz2-dev\
+    libboost-all-dev
+
 # USER sudo
+EXPOSE 8080
 
 
 
@@ -36,9 +39,9 @@ WORKDIR /usr/src/myapp
 
 # This command compiles your app using GCC, adjust for your source code
 # RUN make build
-# RUN make
+RUN make docker
 # RUN make prosumer
 # This command runs your application, comment out this line to compile only
-# CMD ["cd boost_1_66_0 && ./bootstrap.sh --prefix=/usr/local/ && ./b2 install && ./router"]
+# CMD ["./router "]
 
 LABEL Name=router Version=0.0.1

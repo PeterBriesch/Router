@@ -23,16 +23,27 @@ int main(int argc, char const * argv[]){
     //Start router
     int port = 8080;    
     int port_con = 8080;
-    std::string address = "0.0.0.0";
+    std::string address = "10.147.20.40";
+    if(argc > 1){
+        port = stoi(argv[1]);
+        address = argv[2];
+        port_con = stoi(argv[3]);
+    }
     boost::asio::io_service io_service;
+    boost::asio::io_service router_ioservice;
 
     // cout << "Start Router! choose port: " << endl;
     // std::cin >> port;
 
     //Start router
-    Router router(io_service, port, address, port_con);  
+    printf("Starting Router connecting on Port %d, connecting on address %s and port %d \n", port, address.c_str(), port_con);
+    Router router(io_service, port, address, port_con, router_ioservice);  
 
-    std::thread serv([&](){io_service.run();});
+    std::thread serv([&]()
+        {
+            io_service.run();
+        });
+
     // Setup window
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit())
@@ -290,28 +301,15 @@ int main(int argc, char const * argv[]){
             
 
             //scrolling window showing connected clients
-            router.ShowClients();
-            // ImVec2 ourter_size = imVec2(0.0f, ImGUi::GetTextLineHeightWithSpacing() * 8);
-            // if(ImGui::BeginTable("packet_feed")){
-            //     ImGui::TableSetupScrollFreeze(0, 1);//Makes top row always visible
-            //     ImGui::TableSetupColumn("No.", 0);
-            //     ImGui::TableSetupColumn("Time", 0);
-            //     ImGui::TableSetupColumn("Source", 0);
-            //     ImGui::TableSetupColumn("Destination", 0);
-            //     ImGui::TableSetupColumn("Protocol", 0);
-            //     ImGui::TableHeadersRow();
-
-            //     ImGuiListClipper clipper;
-            //     clipper.Begin(1000);
-            //     while(clipper.Step()){
-            //         for(int row = clipper.DisplayStart; row < clipper.DisplayEnd; row++){
-            //             ImGui::TableNextRow();
-            //             for(int column = 0; column < 5; column)
-            //         }
-            //     }
-
-            // }
-
+            std::map<string, boost::shared_ptr<cli_handler>> clients = router.ShowClients();
+    
+            ImGuiWindowFlags window_flags = ImGuiWindowFlags_HorizontalScrollbar;
+            ImGui::BeginChild("ChildL", ImVec2(ImGui::GetContentRegionAvail().x * 0.5f, TEXT_BASE_HEIGHT * 5), false, window_flags);
+            
+            for(auto const& [key, val] : clients){
+                ImGui::Text("%s: Online", key.c_str());
+            }
+            ImGui::EndChild();
 
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::End();
