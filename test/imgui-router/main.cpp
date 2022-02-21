@@ -116,9 +116,7 @@ int main(int argc, char const * argv[]){
     bool show_spreadsheet = false;
     bool show_analyser = true;
     bool show_data = false;
-    int packet_count[] = {0, 0, 0}; //must be changed to an array of int for scalability
     std::vector<net::Packet::packet> cache;
-    net::Packet::packet packet_temp;
     uint64_t payload = 0;
 
 
@@ -175,6 +173,7 @@ int main(int argc, char const * argv[]){
             static bool no_move = false;
             static bool no_resize = false;
             static bool no_collapse = false;
+            static bool no_close = false;
             static bool no_nav = false;
             static bool no_background = false;
             static bool no_bring_to_front = false;
@@ -220,69 +219,20 @@ int main(int argc, char const * argv[]){
 
             if(show_spreadsheet)
             {
-                router.ShowCache(cache);
-                const float TEXT_BASE_HEIGHT = ImGui::GetTextLineHeightWithSpacing();
+                // if (ImGui::BeginTable("Packets", 5, flags, outer_size_value))
+                // {
 
-                static ImGuiTableFlags flags2 = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg;
-                static ImVec2 cell_padding(0.0f, 0.0f);
-                                   
-                static ImVec2 outer_size_value = ImVec2(0.0f, TEXT_BASE_HEIGHT * 30);
-
-                ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, cell_padding);  
-                if (ImGui::BeginTable("table_padding_2", 12, flags2, outer_size_value))
-                {
-                    static char text_bufs[6 * 12][128]; // Mini text storage for 3x5 cells
+                //     //Set up columns
+                //     ImGui::TableSetupColumn("No.", ImGuiTableColumnFlags_WidthFixed);
+                //     ImGui::TableSetupColumn("Length", ImGuiTableColumnFlags_WidthFixed);
+                //     ImGui::TableSetupColumn("Source", ImGuiTableColumnFlags_WidthFixed);
+                //     ImGui::TableSetupColumn("Destination", ImGuiTableColumnFlags_WidthStretch);
+                //     ImGui::TableSetupColumn("Protocol", ImGuiTableColumnFlags_WidthStretch);
+                //     ImGui::TableHeadersRow();
                     
-                    for (int cell = 0; cell < 6 * 12; cell++)
-                    {
-                        ImGui::TableNextColumn();
-                        ImGui::SetNextItemWidth(-FLT_MIN);
-                        ImGui::PushID(cell);
-                        std::regex e ("Count\\([a-fA-F0-9]*\\)");
-                        
-                        if(regex_match(text_bufs[cell], e)){
 
-
-                            std::regex search("[a-fA-F0-9]*");
-                            cmatch m;
-                            regex_match(text_bufs[cell], m, search, regex_constants::match_default);
-
-                            string match = m[0];
-                            int count_index = 0;
-                            if(strcmp(match.c_str(), "bcaf") == 0){
-                                count_index = 0;
-                            }
-                            else if(strcmp(match.c_str(), "c076") == 0){
-                                count_index = 1;
-                            }
-                            else if(strcmp(match.c_str(), "541a") == 0){
-                                count_index = 2;
-                            }
-                            ImGui::Text(to_string(packet_count[count_index]).c_str());
-                            
-                            net::Packet::packet packet = cache[0];
-                            if(packet_temp.header.timestamp != packet.header.timestamp){
-                                string dstaddress(reinterpret_cast<char*>(packet.header.daddr), match.size());
-
-                                if(strcmp(dstaddress.c_str(), match.c_str()) == 0){
-                                    packet_count[count_index] = packet_count[count_index] +1;
-                                }
-                                packet_temp = packet;
-                            }
-                            
-                        }
-                        else{
-                            ImGui::InputText("##cell", text_bufs[cell], IM_ARRAYSIZE(text_bufs[cell]));
-                        }
-                        
-                        ImGui::PopID();
-                        
-                        
-                    }
                     
-                    ImGui::EndTable();
-                }
-                ImGui::PopStyleVar();
+                // }
             }
             if(show_analyser)
             {
@@ -301,16 +251,16 @@ int main(int argc, char const * argv[]){
                     node_port++;
                 }
                 int index = 0;
-                router.ShowCache(cache);
+                bool update_cache = router.ShowCache(cache);
                 const float TEXT_BASE_HEIGHT = ImGui::GetTextLineHeightWithSpacing();
                 static ImVec2 outer_size_value = ImVec2(0.0f, TEXT_BASE_HEIGHT * 12);
                 static ImGuiTableFlags flags = ImGuiTableFlags_ScrollY | ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable | ImGuiTableFlags_Hideable;
                 static ImVector<int> selection;
                 static ImGuiSelectableFlags selectable_flags = ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap;
 
-                if (ImGui::BeginTable("Packets", 6, flags, outer_size_value))
+                if (update_cache)
                 {
-                   
+                    ImGui::BeginTable("Packets", 6, flags, outer_size_value);
 
                     //Set up columns
                     ImGui::TableSetupColumn("No.", ImGuiTableColumnFlags_WidthFixed);
@@ -324,15 +274,6 @@ int main(int argc, char const * argv[]){
 
                     //Loop through every item in the cache and print it on imgui
                     std::for_each(cache.rbegin(), cache.rend(), [&](net::Packet::packet p){
-                        string dstaddress (reinterpret_cast<char*>(p.header.daddr),4);
-                        auto txt_color = ImVec4(0,0,0,0);
-                        if(dstaddress == "bcaf"){
-                            txt_color = ImVec4(1,1,0,1);
-                        }else if (dstaddress == "c076"){
-                            txt_color = ImVec4(1,0,1,1);
-                        }else if (dstaddress == "541a"){
-                            txt_color = ImVec4(0,1,1,1);
-                        }
 
                         const bool item_is_selected = selection.contains(index);
                         ImGui::PushID(index);
@@ -369,15 +310,15 @@ int main(int argc, char const * argv[]){
 
 
                         ImGui::TableNextColumn();
-                        ImGui::TextColored(txt_color, "%lld", (long long)p.header.timestamp);
+                        ImGui::Text("%lld", (long long)p.header.timestamp);
                         ImGui::TableNextColumn();
-                        ImGui::TextColored(txt_color, "%d", p.header.length);
+                        ImGui::Text("%d", p.header.length);
                         ImGui::TableNextColumn();
-                        ImGui::TextColored(txt_color,"10.147.20.40:%d", p.header.saddr);
+                        ImGui::Text("10.147.20.40:%d", p.header.saddr);
                         ImGui::TableNextColumn();
-                        ImGui::TextColored(txt_color, "%s", p.header.daddr);
+                        ImGui::Text("%s", p.header.daddr);
                         ImGui::TableNextColumn();
-                        ImGui::TextColored(txt_color, "TCP");
+                        ImGui::Text("TCP");
                         index++;
 
                         ImGui::PopID();
@@ -403,6 +344,9 @@ int main(int argc, char const * argv[]){
                 ImGui::BeginChild("Red", outer_size_value, true, ImGuiWindowFlags_None);
                 ImGui::TextWrapped("%s", payload_out.c_str());
                 ImGui::EndChild();
+                bool child_is_hovered = ImGui::IsItemHovered();
+                ImVec2 child_rect_min = ImGui::GetItemRectMin();
+                ImVec2 child_rect_max = ImGui::GetItemRectMax();
                 ImGui::PopStyleColor();
                 
 
