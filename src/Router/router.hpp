@@ -91,21 +91,25 @@ class cli_handler : public boost::enable_shared_from_this<cli_handler>
         // MAIN LOOP for cli_handler
         void start()
         {
-            
-            sock.async_read_some(
-                boost::asio::buffer(&data, sizeof(data)),
-                boost::bind(&cli_handler::handle_read,
-                            shared_from_this(),
-                            boost::asio::placeholders::error,
-                            boost::asio::placeholders::bytes_transferred));
-            
-            // sock.async_write_some(
-            //     boost::asio::buffer(message, max_length),
-            //     boost::bind(&cli_handler::handle_write,
-            //                 shared_from_this(),
-            //                 boost::asio::placeholders::error,
-            //                 boost::asio::placeholders::bytes_transferred));
-            
+            try{
+                sock.async_read_some(
+                    boost::asio::buffer(&data, sizeof(data)),
+                    boost::bind(&cli_handler::handle_read,
+                                shared_from_this(),
+                                boost::asio::placeholders::error,
+                                boost::asio::placeholders::bytes_transferred));
+                
+                // sock.async_write_some(
+                //     boost::asio::buffer(message, max_length),
+                //     boost::bind(&cli_handler::handle_write,
+                //                 shared_from_this(),
+                //                 boost::asio::placeholders::error,
+                //                 boost::asio::placeholders::bytes_transferred));
+            }catch(const std::exception &err){
+                std::cerr << "Failed to async_read: " << err.what() << std::endl;
+                dequeue_clients(clients, sock);
+                return;
+            }
         }
 
         void handle_read(const boost::system::error_code& err, size_t bytes_transferred)
@@ -122,18 +126,12 @@ class cli_handler : public boost::enable_shared_from_this<cli_handler>
                 
             }
             else{
-            std::cerr << "error: " << err.message() << endl;
+            std::cerr << "handle_read error: " << err.message() << endl;
 
             // Remove client from map
             dequeue_clients(clients, sock);
-            cout << "Connected Clients: " << endl;
-            for(auto const& [key, val] : *clients){
-                cout << key << endl;
-            }
 
-            // disconnect socket
-            sock.shutdown(boost::asio::socket_base::shutdown_both);
-            sock.close();
+
             return;
             }
             start();
@@ -144,13 +142,9 @@ class cli_handler : public boost::enable_shared_from_this<cli_handler>
             if(!err){
                 cout << "[21e8::router] Router routed message!" << endl;
             }else{
-                std::cerr << "error: " << err.message() << endl;
+                std::cerr << "handle_write error: " << err.message() << endl;
                 // Remove socket from map
-                cout << "handle_write dequeue" << endl;
                 dequeue_clients(clients, sock);
-                // Diconnect socket
-                sock.shutdown(boost::asio::socket_base::shutdown_both);
-                sock.close();
                 return;
             }
             start();
@@ -158,28 +152,36 @@ class cli_handler : public boost::enable_shared_from_this<cli_handler>
 
         void forward_packet()
         {
-            //read header src address check first 8 char of table and match to id
-            string dstaddress( reinterpret_cast<char*>(data.header.daddr), 16);
-            cout << dstaddress << "\n" << data.header.saddr << endl;
 
-            //Get pointer to client from map
-            // Router attempts to route the data to the specified destination address
-            // If the specified address is not in the routing table then send the data to the first client in the routing table
-            cli_handler::pointer dest;
             try{
-                //query connected piers for destination address
-                dest = clients->at(dstaddress);
-            }catch(const std::exception& e){
-                //if query fails then rout to first connected pier in router list
-                auto it = clients->begin();
-                dest = it->second;
+                //read header src address check first 8 char of table and match to id
+                string dstaddress( reinterpret_cast<char*>(data.header.daddr), 16);
+                cout << dstaddress << "\n" << data.header.saddr << endl;
+
+                //Get pointer to client from map
+                // Router attempts to route the data to the specified destination address
+                // If the specified address is not in the routing table then send the data to the first client in the routing table
+                cli_handler::pointer dest;
+                try{
+                    //query connected piers for destination address
+                    dest = clients->at(dstaddress);
+                }catch(const std::exception& e){
+                    //if query fails then rout to first connected pier in router list
+                    auto it = clients->begin();
+                    dest = it->second;
+                }
+                cout << "Routing to " << dest->socket().remote_endpoint() << endl; 
+
+                //Write to specified face
+                boost::asio::write(dest->socket(), boost::asio::buffer(&data, sizeof(data)));
+
+                cout << "Packet successfully routed\n" << endl;
+            }catch(const std::exception &err){
+                std::cerr << "failed to forward packet: " << err.what() << std::endl;
+                dequeue_clients(clients, sock);
             }
-            cout << "Routing to " << dest->socket().remote_endpoint() << endl; 
 
-            //Write to specified face
-            boost::asio::write(dest->socket(), boost::asio::buffer(&data, sizeof(data)));
-
-            cout << "Packet successfully routed\n" << endl;
+            return;
 
         }
 
@@ -195,8 +197,13 @@ class cli_handler : public boost::enable_shared_from_this<cli_handler>
             
             //First 16 char of the hash
             string id = hashFunction(ip).substr(0, 16);
+            
             //remove cli from the client map
             cli->erase(id);
+
+            sock.cancel();
+            sock.shutdown(boost::asio::ip::tcp::socket::shutdown_both);
+            sock.close();
         }
 
         void cache_packet(){

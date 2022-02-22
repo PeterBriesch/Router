@@ -23,7 +23,7 @@ using std::endl;
 condition_variable cv;
 mutex mtx;
 
-// FOR HANDLING CLIENT CONNECTIONS TO PROSUMER
+/* // FOR HANDLING CLIENT CONNECTIONS TO PROSUMER
 class cli_handler : public boost::enable_shared_from_this<cli_handler>
 {
     private:
@@ -146,7 +146,7 @@ class Server
         
         start_accept();
     }
-};
+}; */
 
 
 // FOR connecting to router
@@ -163,19 +163,55 @@ class Client :public boost::enable_shared_from_this<Client>
     public:
 
     Client(boost::asio::io_service &io_service, int port, string address, int bindPort): socket(io_service){
+
+        socket.open(boost::asio::ip::tcp::v4());
+        socket.bind(tcp::endpoint(socket.local_endpoint().address(), bindPort));
+        bool connected = false;
+
+        while(!connected){
+                
+            connected = cliConnect(address, port);
+                
+        }
+
+    }
+
+    bool cliConnect(string address, int port){
+
         try{
-            socket.open(boost::asio::ip::tcp::v4());
-            socket.bind(tcp::endpoint(socket.local_endpoint().address(), bindPort));
             socket.connect(tcp::endpoint(boost::asio::ip::address::from_string(address), port));
             cout << "[21e8::Prosumer] Connection on : " << address << ":" << port << endl;;
             cout << "[21e8::Prosumer] Started on port: " << socket.local_endpoint().port() << endl;
             run();
-            
-
+            return true;
         }catch(const std::exception& e){
-            std::cerr << e.what() << endl;
+            std::cout<< "coultdn't connect to prosumer: RETRYING" << std::endl;
+            std::this_thread::sleep_for(std::chrono::seconds(2));
+            return false;
+        }
+    }
+
+    void cliDisconnect(){
+        try{
+            boost::system::error_code errorcode;
+            socket.cancel();
+
+            if (socket.is_open()){
+
+                socket.shutdown(boost::asio::ip::tcp::socket::shutdown_both, errorcode);
+                if (errorcode)
+                    std::cerr << "socket.shutdown error: " << errorcode.message() << std::endl;
+
+                socket.close(errorcode);
+                if (errorcode)
+                    std::cerr << "socket.close error: " << errorcode.message() << std::endl;
+
+            }
+        }catch(const std::exception &err){
+            std::cerr << "error: " << err.what() << std::endl;
         }
 
+            return;
     }
 
     void start(int port, string address){
@@ -184,86 +220,94 @@ class Client :public boost::enable_shared_from_this<Client>
 
     // Main loop
     void run(){
+
+        try{
+            
+            uint32_t ip_int = socket.local_endpoint().port();
+            if(ip_int != 8081){
+                //iterate counter
+                count++;
+
+                uint64_t hash;
+                char* end;
+                unsigned char dest[][16] = {"bcaf48cbef7c945","c0766f1285c1f25", "541a208ff1eb4d6"};
+                int rand_index = rand() % 3;
+                pkt.header.saddr = ip_int;
+                //convert counter to string
+                stringstream ss;
+                ss << count;
+
+                //create data to put into packet
+                hash = strtoul(hashFunction(ss.str()).substr(0, 16).c_str(), &end, 16);
+                Packet packet (pkt);
+                packet.packet_builder(ip_int, dest[rand_index], hash);
+
+                net::Packet::packet snd_pkt = packet.get_packet();
+
+                socket.async_write_some(
+                boost::asio::buffer(&snd_pkt, packet.size()),
+                boost::bind(&Client::handle_write,
+                            this,
+                            boost::asio::placeholders::error,
+                            boost::asio::placeholders::bytes_transferred)
+                );
+                
+                int rand_num = rand() % 4;
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+
+            }
+            // string in;        
         
-        uint32_t ip_int = socket.local_endpoint().port();
-        if(ip_int != 8081){
-            //iterate counter
-            count++;
+            /* // // --------------------- get new input from client -------------------
+            // cout << "Send packet 1 or 2: " << endl;
 
-            uint64_t hash;
-            char* end;
-            unsigned char dest[][16] = {"bcaf48cbef7c945","c0766f1285c1f25", "541a208ff1eb4d6"};
-            int rand_index = rand() % 3;
-            pkt.header.saddr = ip_int;
-            //convert counter to string
-            stringstream ss;
-            ss << count;
+            // std::cin >> in;
 
-            //create data to put into packet
-            hash = strtoul(hashFunction(ss.str()).substr(0, 16).c_str(), &end, 16);
-            Packet packet (pkt);
-            packet.packet_builder(ip_int, dest[rand_index], hash);
+            // uint32_t ip_int = socket.local_endpoint().port();
+            // pkt.header.saddr = ip_int;
+            // Packet packet (pkt);
+        
+            // if(in == "1"){
+            //     packet.packet_builder(ip_int, "bcaf48cbef7c9453", 0);
+            //     pkt = packet.get_packet();
 
-            net::Packet::packet snd_pkt = packet.get_packet();
+            //     boost::asio::write(socket, boost::asio::buffer(&pkt, packet.size()));
+            //     socket.async_read_some(
+            //     boost::asio::buffer(&rcv_pkt, sizeof(rcv_pkt)),
+            //     boost::bind(&Client::handle_response,
+            //                 this,
+            //                 boost::asio::placeholders::error,
+            //                 boost::asio::placeholders::bytes_transferred));
+            //     return;
+                
+                
+            // }else if (in == "2"){
+            //     packet.packet_builder(ip_int, "c0766f1285c1f25a", 0);
+            //     pkt = packet.get_packet();
 
-            socket.async_write_some(
-            boost::asio::buffer(&snd_pkt, packet.size()),
-            boost::bind(&Client::handle_write,
+            //     boost::asio::write(socket, boost::asio::buffer(&pkt, packet.size()));
+            //     socket.async_read_some(
+            //     boost::asio::buffer(&rcv_pkt, sizeof(rcv_pkt)),
+            //     boost::bind(&Client::handle_response,
+            //                 this,
+            //                 boost::asio::placeholders::error,
+            //                 boost::asio::placeholders::bytes_transferred));
+            //     return;
+
+            // }
+    */
+            socket.async_read_some(
+            boost::asio::buffer(&rcv_pkt, sizeof(rcv_pkt)),
+            boost::bind(&Client::handle_response,
                         this,
                         boost::asio::placeholders::error,
-                        boost::asio::placeholders::bytes_transferred)
-            );
-            
-            int rand_num = rand() % 4;
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-
+                        boost::asio::placeholders::bytes_transferred));
         }
-        // string in;        
-       
-        // // --------------------- get new input from client -------------------
-        // cout << "Send packet 1 or 2: " << endl;
-
-        // std::cin >> in;
-
-        // uint32_t ip_int = socket.local_endpoint().port();
-        // pkt.header.saddr = ip_int;
-        // Packet packet (pkt);
-    
-        // if(in == "1"){
-        //     packet.packet_builder(ip_int, "bcaf48cbef7c9453", 0);
-        //     pkt = packet.get_packet();
-
-        //     boost::asio::write(socket, boost::asio::buffer(&pkt, packet.size()));
-        //     socket.async_read_some(
-        //     boost::asio::buffer(&rcv_pkt, sizeof(rcv_pkt)),
-        //     boost::bind(&Client::handle_response,
-        //                 this,
-        //                 boost::asio::placeholders::error,
-        //                 boost::asio::placeholders::bytes_transferred));
-        //     return;
-            
-            
-        // }else if (in == "2"){
-        //     packet.packet_builder(ip_int, "c0766f1285c1f25a", 0);
-        //     pkt = packet.get_packet();
-
-        //     boost::asio::write(socket, boost::asio::buffer(&pkt, packet.size()));
-        //     socket.async_read_some(
-        //     boost::asio::buffer(&rcv_pkt, sizeof(rcv_pkt)),
-        //     boost::bind(&Client::handle_response,
-        //                 this,
-        //                 boost::asio::placeholders::error,
-        //                 boost::asio::placeholders::bytes_transferred));
-        //     return;
-
-        // }
-
-        socket.async_read_some(
-        boost::asio::buffer(&rcv_pkt, sizeof(rcv_pkt)),
-        boost::bind(&Client::handle_response,
-                    this,
-                    boost::asio::placeholders::error,
-                    boost::asio::placeholders::bytes_transferred));
+        catch(const std::exception &err){
+            std::cerr << "error: " << err.what() << std::endl;
+            cliDisconnect();
+            return;
+        }
 
         return;        
     }
@@ -281,11 +325,8 @@ class Client :public boost::enable_shared_from_this<Client>
         }
         else{
             cout << "receive failed: " << err.message() << endl;
-            socket.cancel();
-            socket.shutdown(boost::asio::socket_base::shutdown_both);
-            socket.close();
-            exit(1);
-            
+            cliDisconnect();
+            return;
         }
         run();
     }
@@ -325,10 +366,8 @@ class Client :public boost::enable_shared_from_this<Client>
         }
         else{
             cout << "receive failed: " << err.message() << endl;
-            socket.cancel();
-            socket.shutdown(boost::asio::socket_base::shutdown_both);
-            socket.close();
-            exit(1);
+            cliDisconnect();
+            return;
             
         }
         run();
@@ -343,10 +382,8 @@ class Client :public boost::enable_shared_from_this<Client>
         }
         else{
             cout << "send failed: " << err.message() << endl;
-            socket.cancel();
-            socket.shutdown(boost::asio::socket_base::shutdown_both);
-            socket.close();
-            exit(1);
+            cliDisconnect();
+            return;
         }
         run();
     }
@@ -358,21 +395,28 @@ class Client :public boost::enable_shared_from_this<Client>
 int main(int argc, char const *argv[]){
     
 
-    int node_port = 2180;
-    int port;
+    int node_port = 2180; // port to start the node on
+    int bindPort; // port to bind prosumer to
+    int newport; // port used to connect to router
     boost::asio::io_service io_service;
     boost::asio::io_service client_service;
-    int newport;
-    string address;
+    string address; // address that the router is on
 
     if(argc >= 2){
         node_port = stoi(argv[1]);
-        port = stoi(argv[2]);
+        bindPort = stoi(argv[2]);
         address = argv[3];
         newport = stoi(argv[4]);
-        std::thread srv(StartServer, node_port);
-        Client client(client_service, newport, address, port);
-        client_service.run();
+        
+        while(1){
+            try{
+                std::thread srv(StartServer, node_port);
+                Client client(client_service, newport, address, bindPort);
+                client_service.run();
+            }catch(const std::exception& e){
+                cout << "couldn't connect to prosumer retrying" << endl;
+            }
+        }
 
     }
     else{
@@ -385,9 +429,9 @@ int main(int argc, char const *argv[]){
 
         // Start server
         cout << "[21e8::Prosumer] Start Prosumer! choose port: ";
-        std::cin >> port;
+        std::cin >> bindPort;
 
-        cout << "-------------------------- Server Started on port "<< port << " --------------------------" << endl;
+        cout << "-------------------------- Server Started on port "<< bindPort << " --------------------------" << endl;
 
         // start clients
         cout << "[21e8::Prosumer] Make Connection? [Y]" << endl;
@@ -403,7 +447,7 @@ int main(int argc, char const *argv[]){
 
                 std::cin >> newport;
                 // newport = 8080;
-                Client client(client_service, newport, address, port);
+                Client client(client_service, newport, address, bindPort);
                 client_service.run();
                 std::cin >> operation;
 

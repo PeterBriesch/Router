@@ -78,7 +78,7 @@ prosumer: Server.o Prosumer.o mine.o
 
 clean:
 	rm -f $(EXE) $(OBJS)
-	rm prosumer Prosumer.o helper.o
+	rm -f prosumer Prosumer.o
 
 
 # all: 
