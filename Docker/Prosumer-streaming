@@ -12,6 +12,7 @@ Label Description="Build environment"
 RUN apt-get update -y
 RUN apt-get install -y\ 
     g++\
+    git\
     libcrypto++-dev=8.4.0-1\
     libcrypto++-utils=8.4.0-1\
     build-essential\
@@ -24,7 +25,10 @@ RUN apt-get install -y\
     libicu-dev\
     g++\
     libbz2-dev\
-    libboost-all-dev
+    libboost-all-dev\
+    pip
+
+RUN pip3 install requests
 
 # USER sudo
 EXPOSE 8080
@@ -34,14 +38,15 @@ EXPOSE 8080
 # These commands copy your files into the specified directory in the image
 # and set that as the working location
 # COPY ./libcrypto++.so.8 /lib/x86_64-linux-gnu
-COPY .. /usr/src/myapp
 WORKDIR /usr/src/myapp
+RUN git clone https://github.com/PeterBriesch/Router
+WORKDIR /usr/src/myapp/Router
 
 # This command compiles your app using GCC, adjust for your source code
 # RUN make build
 RUN make prosumer
 # RUN make prosumer
 # This command runs your application, comment out this line to compile only
-CMD ["./prosumer 2180 8081 10.147.20.40 8080 && python ./test/python-httpstreamer/httpstreamer.py"]
+# CMD ["/usr/src/myapp/Router/prosumer 2180 8081 10.147.20.40 8080 && python /usr/src/myapp/Router/test/python-httpstreamer/httpstreamer.py"]
 
 LABEL Name=router Version=0.0.1

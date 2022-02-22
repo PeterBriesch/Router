@@ -1,7 +1,7 @@
 /.vscode
 /basic routing architecture.odg
-# /data
-# /index
+/data
+/index
 /router_net.hpp
 test.cpp
 Trie

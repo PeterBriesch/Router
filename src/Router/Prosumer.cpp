@@ -8,6 +8,7 @@
 #include "packet_structure.hpp"
 #include <mutex>
 #include <condition_variable>
+#include <netinet/in.h>
 
 #include "Node/Server.hpp"
 #include "Miner/mine.hpp"
@@ -22,6 +23,8 @@ using std::cout;
 using std::endl;
 condition_variable cv;
 mutex mtx;
+
+struct sockaddr_in6 antelope;
 
 /* // FOR HANDLING CLIENT CONNECTIONS TO PROSUMER
 class cli_handler : public boost::enable_shared_from_this<cli_handler>
@@ -230,7 +233,11 @@ class Client :public boost::enable_shared_from_this<Client>
 
                 uint64_t hash;
                 char* end;
-                unsigned char dest[][16] = {"bcaf48cbef7c945","c0766f1285c1f25", "541a208ff1eb4d6"};
+                inet_pton(AF_INET6, "bcaf:48cb:ef7c:9453:bcaf:48cb:ef7c:9453", &(antelope.sin6_addr));
+                unsigned char temp[INET6_ADDRSTRLEN];
+                inet_ntop(AF_INET6, &(antelope.sin6_addr), (char*)temp, INET6_ADDRSTRLEN);
+                printf("THE IPV6 address is : %s\n", temp);
+                static unsigned char dest[][16] = {"bcaf48cbef7c945", "c0766f1285c1f25", "541a208ff1eb4d6"};
                 int rand_index = rand() % 3;
                 pkt.header.saddr = ip_int;
                 //convert counter to string

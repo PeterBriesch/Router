@@ -150,13 +150,24 @@ class cli_handler : public boost::enable_shared_from_this<cli_handler>
             start();
         }
 
+        cli_handler::pointer query_routingTable(string query){
+            cli_handler::pointer dest;
+
+            string address = routingTable.at(query);
+
+            
+
+            return dest;
+        }
+
         void forward_packet()
         {
 
             try{
                 //read header src address check first 8 char of table and match to id
                 string dstaddress( reinterpret_cast<char*>(data.header.daddr), 16);
-                cout << dstaddress << "\n" << data.header.saddr << endl;
+                cout << std::hex << data.header.daddr << endl;
+                cout << data.header.saddr << endl;
 
                 //Get pointer to client from map
                 // Router attempts to route the data to the specified destination address
@@ -197,7 +208,7 @@ class cli_handler : public boost::enable_shared_from_this<cli_handler>
             
             //First 16 char of the hash
             string id = hashFunction(ip).substr(0, 16);
-            
+
             //remove cli from the client map
             cli->erase(id);
 
