@@ -292,7 +292,7 @@ int main(int argc, char const * argv[]){
                 static int port = 8081;
                 static int node_port = 2180;
                 static int newport = 8080;
-                static std::string address = "10.147.20.40";
+                static std::string address = "0.0.0.0";
                 if(ImGui::Button("Start Prosumer")){
                     char command[1024];
                     sprintf(command, "gnome-terminal -e 'sh -c \"./prosumer %d %d %s %d\"'", node_port, port, address.c_str(), newport);

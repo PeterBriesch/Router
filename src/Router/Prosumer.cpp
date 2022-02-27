@@ -217,6 +217,12 @@ class Client :public boost::enable_shared_from_this<Client>
             return;
     }
 
+    void streamIndex(){
+
+        
+
+    }
+
     void start(int port, string address){
         
     }
@@ -233,10 +239,13 @@ class Client :public boost::enable_shared_from_this<Client>
 
                 uint64_t hash;
                 char* end;
-                inet_pton(AF_INET6, "bcaf:48cb:ef7c:9453:bcaf:48cb:ef7c:9453", &(antelope.sin6_addr));
+
+                string temp1 = "bcaf:48cb:ef7c:9453:bcaf:48cb:ef7c:9453";
+                inet_pton(AF_INET6, temp1.c_str(), &(antelope.sin6_addr));
                 unsigned char temp[INET6_ADDRSTRLEN];
                 inet_ntop(AF_INET6, &(antelope.sin6_addr), (char*)temp, INET6_ADDRSTRLEN);
-                printf("THE IPV6 address is : %s\n", temp);
+                std::cout << "THE IPV6 address is :" <<  temp << std::endl;
+
                 static unsigned char dest[][16] = {"bcaf48cbef7c945", "c0766f1285c1f25", "541a208ff1eb4d6"};
                 int rand_index = rand() % 3;
                 pkt.header.saddr = ip_int;
