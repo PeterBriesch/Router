@@ -24,7 +24,7 @@ using std::endl;
 condition_variable cv;
 mutex mtx;
 
-struct sockaddr_in6 antelope;
+unsigned char antelope;
 
 /* // FOR HANDLING CLIENT CONNECTIONS TO PROSUMER
 class cli_handler : public boost::enable_shared_from_this<cli_handler>
@@ -240,13 +240,13 @@ class Client :public boost::enable_shared_from_this<Client>
                 uint64_t hash;
                 char* end;
 
-                string temp1 = "bcaf:48cb:ef7c:9453:bcaf:48cb:ef7c:9453";
-                inet_pton(AF_INET6, temp1.c_str(), &(antelope.sin6_addr));
-                unsigned char temp[INET6_ADDRSTRLEN];
-                inet_ntop(AF_INET6, &(antelope.sin6_addr), (char*)temp, INET6_ADDRSTRLEN);
-                std::cout << "THE IPV6 address is :" <<  temp << std::endl;
+                // string temp1 = "bcaf:48cb:ef7c:9453:bcaf:48cb:ef7c:9453";
+                // inet_pton(AF_INET6, temp1.c_str(), &(antelope));
+                // unsigned char temp[INET6_ADDRSTRLEN];
+                // inet_ntop(AF_INET6, &(antelope), (char*)temp, INET6_ADDRSTRLEN);
+                // std::cout << "THE IPV6 address is :" <<  temp << std::endl;
 
-                static unsigned char dest[][16] = {"bcaf48cbef7c945", "c0766f1285c1f25", "541a208ff1eb4d6"};
+                static unsigned char dest[][INET6_ADDRSTRLEN] = {"bcaf:48cb:ef7c:9453:bcaf:48cb:ef7c:9453", "c076:6f12:85c1:f25a:bcaf:48cb:ef7c:9453", "541a:208f:f1eb:4d61:bcaf:48cb:ef7c:9453"};
                 int rand_index = rand() % 3;
                 pkt.header.saddr = ip_int;
                 //convert counter to string
@@ -255,6 +255,7 @@ class Client :public boost::enable_shared_from_this<Client>
 
                 //create data to put into packet
                 hash = strtoul(hashFunction(ss.str()).substr(0, 16).c_str(), &end, 16);
+
                 Packet packet (pkt);
                 packet.packet_builder(ip_int, dest[rand_index], hash);
 
@@ -268,7 +269,6 @@ class Client :public boost::enable_shared_from_this<Client>
                             boost::asio::placeholders::bytes_transferred)
                 );
                 
-                int rand_num = rand() % 4;
                 std::this_thread::sleep_for(std::chrono::seconds(1));
 
             }

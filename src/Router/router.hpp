@@ -1,5 +1,5 @@
 #pragma once
-#include <boost/asio.hpp>
+#include "boost/asio.hpp"
 #include "boost/bind.hpp"
 #include "boost/enable_shared_from_this.hpp"
 #include "boost/lexical_cast.hpp"
@@ -18,6 +18,7 @@
 // #include <GLFW/glfw3.h> // Will drag system OpenGL headers
 
 #include "Miner/mine.hpp"
+
 #define PORT 8080
 #define ADDRESS "0.0.0.0"
 // #define ASIO_STANDALONE
@@ -28,58 +29,205 @@ using std::string;
 using std::cout;
 using std::endl;
 
+/* HELPER FUNCTIONS AND STRUCTS*/
+
 std::mutex cache_mutex;
 
-// Cli_handler is spawned for each new client that connects to the router
-class cli_handler : public boost::enable_shared_from_this<cli_handler>
+class cli_handler;
+class routingTable;
+class Router;
+
+// Shared pointer used to access client handler object
+typedef boost::shared_ptr<cli_handler> pointer;
+
+
+string iptohash(string port, string address)
 {
-    public:
-    // Shared pointer used to access client handler object
-    typedef boost::shared_ptr<cli_handler> pointer;
 
-    private:
+    string ip = address + ":" + port;   
+    //First 16 char of the hash
+    string id = hashFunction(ip);
 
-        tcp::socket sock;
-        string cli_id;
-        // Clients stores shared pointers to cli_handler objects
-        std::map<string, cli_handler::pointer> *clients;
-        enum{ max_length = 2048};
-        net::Packet::packet data;
-        std::vector<net::Packet::packet> *cache;
-        std::map<string, string> routingTable;
+    return id;
+}
 
-    public: 
+string hashtoIPv6(string hash)
+{
+    char ipv6[INET6_ADDRSTRLEN];
+
+    if(hash.size() <= 32){
+        //represents size of ipv6 char array
+        int count = 0;
+        int n = 0;
+
+        //loop through hash string and add colon as needed 
+        for(char const &c: hash)
+        {
+            ipv6[count] = c;
+
+            count++;
+
+            //check if its reached 4th position
+            if((count-n)%4 == 0 && c != *hash.end()){
+                ipv6[count] = ':';
+                count++;
+                n++;
+            }
+        }
+
+        while((count-n)%4 == 1)
+        {
+            ipv6[count] = '0';
+            count++;
+        }
+        if(count < 39)
+        {
+            ipv6[count] = ':';
+            ipv6[count+1] = ':';
+        }
         
-        cli_handler(tcp::socket& io_service, std::map<string, cli_handler::pointer>& cli, string* id, std::vector<net::Packet::packet> &cache_f): sock(std::move(io_service)){
-            //copy address to cli_handler pointer 
-            clients = &cli;
-            //copy address to cache
-            cache = &cache_f;
-            //copy address to cli_id
-            cli_id = *id;
+    }
+    else{
+        std::cerr << "Hash is to long for IPv6 address" << std::endl;
+    }
 
-            //Read routing table (CURRENTLY NOT BEING USED)
+    return ipv6;
+}
+
+
+string sockaddr_tostring(boost::asio::ip::address adr)
+{
+    std::ostringstream os;
+    os << adr;
+    return os.str();
+}
+
+/*----------------------------------------------------------*/
+
+class routingTable
+{
+    private:
+        std::map<string, string> table; //Key: ip address and port Value: hash of key
+        std::map<string, pointer> client;//Key: hash of key same as table Value: cli_handler::pointer to client_handler object
+
+    public:
+
+        routingTable(void)
+        {
             std::ifstream inFile;
-            inFile.open("./src/Router/table.txt");
-            if(!inFile){
-                std::cerr << "unable to open file" << endl;
-                dequeue_clients(clients, sock);
+            try{
+                inFile.open("./src/Router/table.txt");
+            }catch(const std::exception &err){
+                std::cerr << "unable to open file: " << err.what() << std::endl;
                 exit(1);
             }
+
             string key;
             string value;
             while(inFile >> key){
                 inFile >> value;
-                routingTable.emplace(key, value);
+                table.emplace(key, value);
             }
 
         }
-        ~cli_handler(){};
+
+        void operator=(const routingTable &r){
+            table = r.table;
+            client = r.client;
+        }
+
+        void dequeue_clients(tcp::socket &sock, sockaddr_in sock_info){
+
+            //parse boost::asio::ip::address as string and port to string
+            char address_s[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, &(sock_info.sin_addr), address_s, INET_ADDRSTRLEN);
+            string port_s = to_string(sock_info.sin_port);
+            string ip (address_s);
+
+            std::cout << address_s << ":" << port_s << std::endl;
+
+            string cli_id = table.at(ip+":"+port_s);
+
+            //remove cli from the client map
+            this->client.erase(cli_id);
+            sock.close();
+        }
+
+        void cli_insert(pointer cli, int port_in, boost::asio::ip::address addr_in)
+        {
+
+            // parse ip::address to string
+            string ip = sockaddr_tostring(addr_in);
+            string port = to_string(port_in);
+
+            string ip_hash = iptohash(port, ip).substr(0, 16);
+
+            string cli_id = hashtoIPv6(ip_hash);
+
+            //add ip and hash of ip to routingTable
+            this->table.emplace(ip+":"+port, cli_id);
+
+            //add hash of ip and pointer to clientTable
+            this->client.emplace(cli_id,cli);
+        }
+
+        string query_table(string q)
+        {
+            return table.at(q);
+        }
+
+        pointer query_clients(string q)
+        {
+            string search = table.at(q);
+
+            return client.at(search);
+        }
+
+        std::map<string, pointer> get_clients()
+        {
+            return this->client;
+        }
+
+        std::map<string, string> get_rTable()
+        {
+            return this->table;
+        }
+
+};
+
+
+// Cli_handler is spawned for each new client that connects to the router
+class cli_handler : public boost::enable_shared_from_this<cli_handler>, public routingTable
+{
+    public:
+    
+
+    private:
+
+        tcp::socket sock;
+        sockaddr_in sock_info;
+        // Clients stores shared pointers to cli_handler objects
+        enum{ max_length = 2048};
+        net::Packet::packet data;
+        std::vector<net::Packet::packet> *cache;
+        routingTable *rTable_ptr;
+
+    public: 
+        
+        cli_handler(tcp::socket& io_service, std::vector<net::Packet::packet> &cache_f, routingTable &rTable): sock(std::move(io_service)){
+            //copy address to cache
+            cache = &cache_f;
+            //copy address to routingTable
+            rTable_ptr = &rTable;
+
+            inet_pton(AF_INET, sockaddr_tostring(sock.remote_endpoint().address()).c_str(), &(sock_info.sin_addr));
+            sock_info.sin_port = sock.remote_endpoint().port();
+        }
 
         // creating the pointer
-        static pointer create(tcp::socket& io_service, std::map<string, cli_handler::pointer>& clients, string* cli_id, std::vector<net::Packet::packet> &cache)
+        static pointer create(tcp::socket& io_service, std::vector<net::Packet::packet> &cache, routingTable &rTable)
         {
-            return pointer(new cli_handler(io_service, clients, cli_id, cache));
+            return pointer(new cli_handler(io_service, cache, rTable));
         }
 
         //socket creation
@@ -107,7 +255,7 @@ class cli_handler : public boost::enable_shared_from_this<cli_handler>
                 //                 boost::asio::placeholders::bytes_transferred));
             }catch(const std::exception &err){
                 std::cerr << "Failed to async_read: " << err.what() << std::endl;
-                dequeue_clients(clients, sock);
+                rTable_ptr->dequeue_clients(sock, sock_info);
                 return;
             }
         }
@@ -126,13 +274,11 @@ class cli_handler : public boost::enable_shared_from_this<cli_handler>
                 
             }
             else{
-            std::cerr << "handle_read error: " << err.message() << endl;
+                std::cerr << "handle_read error: " << err.message() << endl;
 
-            // Remove client from map
-            dequeue_clients(clients, sock);
-
-
-            return;
+                // Remove client from map
+                rTable_ptr->dequeue_clients(sock, sock_info);
+                return;
             }
             start();
         }
@@ -144,41 +290,47 @@ class cli_handler : public boost::enable_shared_from_this<cli_handler>
             }else{
                 std::cerr << "handle_write error: " << err.message() << endl;
                 // Remove socket from map
-                dequeue_clients(clients, sock);
+                rTable_ptr->dequeue_clients(sock, sock_info);
                 return;
             }
             start();
         }
 
-        cli_handler::pointer query_routingTable(string query){
-            cli_handler::pointer dest;
+        // cli_handler::pointer query_routingTable(string query){
+        //     cli_handler::pointer dest;
 
-            string address = routingTable.at(query);
+        //     string address = routingTable.at(query);
 
             
 
-            return dest;
-        }
+        //     return dest;
+        // }
 
         void forward_packet()
         {
 
             try{
                 //read header src address check first 8 char of table and match to id
-                string dstaddress( reinterpret_cast<char*>(data.header.daddr), 16);
-                cout << std::hex << data.header.daddr << endl;
+                unsigned char dstaddress[INET6_ADDRSTRLEN];
+                inet_ntop(AF_INET6, data.header.daddr, (char*)dstaddress, INET6_ADDRSTRLEN);
+                
+                cout << dstaddress << endl;
                 cout << data.header.saddr << endl;
 
-                //Get pointer to client from map
-                // Router attempts to route the data to the specified destination address
-                // If the specified address is not in the routing table then send the data to the first client in the routing table
-                cli_handler::pointer dest;
+                /* 
+                Get pointer to client from map
+                Router attempts to route the data to the specified destination address
+                If the specified address is not in the routing table then send the data to the first client in the routing table
+                */
+                pointer dest;
                 try{
                     //query connected piers for destination address
-                    dest = clients->at(dstaddress);
+                    dest = rTable_ptr->query_clients((char*)dstaddress);
                 }catch(const std::exception& e){
+                    std::cerr << "Client not connected to router. Routing to first client in routing table" << endl;
                     //if query fails then rout to first connected pier in router list
-                    auto it = clients->begin();
+                    auto clients = rTable_ptr->get_clients();
+                    auto it = clients.begin();
                     dest = it->second;
                 }
                 cout << "Routing to " << dest->socket().remote_endpoint() << endl; 
@@ -189,32 +341,11 @@ class cli_handler : public boost::enable_shared_from_this<cli_handler>
                 cout << "Packet successfully routed\n" << endl;
             }catch(const std::exception &err){
                 std::cerr << "failed to forward packet: " << err.what() << std::endl;
-                dequeue_clients(clients, sock);
+                rTable_ptr->dequeue_clients(sock, sock_info);
+                return;
             }
 
-            return;
 
-        }
-
-        void dequeue_clients(std::map<string, boost::shared_ptr<cli_handler>> *cli, tcp::socket &sock){
-
-            //parse boost::asio::ip::address as string and port to string
-            std::ostringstream os;
-            os << sock.remote_endpoint().address();
-
-            string port_s = to_string(sock.remote_endpoint().port());
-            string address_s = os.str();
-            string ip = address_s + ":" + port_s;
-            
-            //First 16 char of the hash
-            string id = hashFunction(ip).substr(0, 16);
-
-            //remove cli from the client map
-            cli->erase(id);
-
-            sock.cancel();
-            sock.shutdown(boost::asio::ip::tcp::socket::shutdown_both);
-            sock.close();
         }
 
         void cache_packet(){
@@ -231,6 +362,7 @@ class cli_handler : public boost::enable_shared_from_this<cli_handler>
 
 };
 
+
 class Router 
 {
     private:
@@ -238,7 +370,7 @@ class Router
     tcp::acceptor acceptor_;
     tcp::socket router_sock;
     // Map stores pointer to client objects
-    std::map<string, boost::shared_ptr<cli_handler>> clients;
+    routingTable rTable;
     std::vector<net::Packet::packet> cache;
     string cli_id;
 
@@ -252,7 +384,7 @@ class Router
                 if(!er){
 
                     std::lock_guard<std::mutex> guard(cache_mutex);
-                    cli_handler::pointer connection = cli_handler::create(socket, clients, &cli_id, cache);
+                    pointer connection = cli_handler::create(socket, cache, rTable);
                     handle_accept(connection);
 
                 }
@@ -266,6 +398,7 @@ class Router
     //constructor for accepting connection from client
     Router(boost::asio::io_service& io_service, int port, std::string address, int port_con, boost::asio::io_service& router_ioservice): acceptor_(io_service, tcp::endpoint(tcp::v4(), port)), router_sock(io_service)
     {
+
         cout << "Router LISTENING on " << acceptor_.local_endpoint() << endl;
 
         //  Connect to router 
@@ -280,7 +413,7 @@ class Router
         start_accept();
     }
 
-    void handle_accept(cli_handler::pointer connection)
+    void handle_accept(pointer connection)
     {
 
         try{
@@ -293,8 +426,8 @@ class Router
         
         connection->start();
         //store client in map
-        cli_insert(connection);
-        print_clients(clients);
+        rTable.cli_insert(connection, connection->socket().remote_endpoint().port(), connection->socket().remote_endpoint().address());
+        print_clients(rTable.get_clients());
             
         start_accept();
     }
@@ -302,7 +435,7 @@ class Router
     std::map<string, boost::shared_ptr<cli_handler>> ShowClients(){
 
         try{
-            return clients;
+            return rTable.get_clients();
         }
         catch(const std::exception& e){
             std::cout<< e.what()<< std::endl;
@@ -314,19 +447,14 @@ class Router
     bool ShowCache(std::vector<net::Packet::packet> &cache1){
         if(!cache.empty()){
             std::lock_guard<std::mutex> guard(cache_mutex);
-            if(cache1[0].header.daddr == cache[0].header.daddr &&
-                cache1[0].payload.payload == cache[0].payload.payload){
-                return false;
-            }
 
             cache1 = cache;
-            return true;
         }
         return true;
         
     }
 
-    static void print_clients(std::map<string, boost::shared_ptr<cli_handler>> &cli){
+    static void print_clients(std::map<string, boost::shared_ptr<cli_handler>> cli){
         cout << "Connected Clients: " << endl;
         for(auto const& [key, val] : cli){
             cout << key << endl;
@@ -338,7 +466,7 @@ class Router
         std::lock_guard<std::mutex> guard(cache_mutex);
 
         //create cli_handler pointer
-        cli_handler::pointer routerCon = cli_handler::create(router_sock, clients, &cli_id, cache);
+        pointer routerCon = cli_handler::create(router_sock, cache, rTable);
         // boost::asio::ip::tcp::acceptor::reuse_address option(true); 
         // // routerCon->socket().set_option(option);
         // routerCon->socket().bind(tcp::endpoint(tcp::v4(), port));
@@ -347,28 +475,13 @@ class Router
         //start the client handler
         routerCon->start();
         //insert the pointer to the 
-        cli_insert(routerCon);
-        print_clients(clients);
-    }
+        rTable.cli_insert(routerCon, routerCon->socket().remote_endpoint().port(), routerCon->socket().remote_endpoint().address());
+        print_clients(rTable.get_clients());
+    } 
 
-
-    cli_handler::pointer get_cli(string key)
+    routingTable getRoutingTable(void)
     {
-        return clients.at(key);
+        return rTable;
     }
 
-    void cli_insert(cli_handler::pointer cli)
-    {
-        // parse ip::address to string
-        std::ostringstream os;
-        os << cli->socket().remote_endpoint().address();
-
-        string port = to_string(cli->socket().remote_endpoint().port());
-        string ip = os.str();
-
-        //compute hashfunction of ip:port
-        cli_id = hashFunction(ip+":"+port).substr(0,16);
-        //add client to map
-        clients.emplace(cli_id,cli);
-    }
 };

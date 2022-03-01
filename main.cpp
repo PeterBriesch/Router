@@ -178,7 +178,7 @@ int main(int argc, char const * argv[]){
             static bool no_nav = false;
             static bool no_background = false;
             static bool no_bring_to_front = false;
-            static bool no_docking = false;
+            static bool no_docking = true;
             static bool unsaved_document = false;
 
             ImGuiWindowFlags window_flags = 0;
@@ -201,6 +201,9 @@ int main(int argc, char const * argv[]){
             const ImGuiViewport* main_viewport = ImGui::GetMainViewport();
             ImGui::SetNextWindowPos(ImVec2(main_viewport->WorkPos.x + 650, main_viewport->WorkPos.y + 20), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowSize(ImVec2(550, 680), ImGuiCond_FirstUseEver);
+
+            auto window_size = ImGui::GetWindowSize();
+
 
             if(ImGui::BeginMenuBar())
             {
@@ -308,6 +311,9 @@ int main(int argc, char const * argv[]){
                 static ImVector<int> selection;
                 static ImGuiSelectableFlags selectable_flags = ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap;
 
+                /*
+                Table of packets as they stream through the router
+                */
                 if (ImGui::BeginTable("Packets", 6, flags, outer_size_value))
                 {
                    
@@ -324,20 +330,20 @@ int main(int argc, char const * argv[]){
 
                     //Loop through every item in the cache and print it on imgui
                     std::for_each(cache.rbegin(), cache.rend(), [&](net::Packet::packet p){
-                        string dstaddress (reinterpret_cast<char*>(p.header.daddr),4);
-                        auto txt_color = ImVec4(0,0,0,0);
-                        if(dstaddress == "bcaf"){
-                            txt_color = ImVec4(1,1,0,1);
-                        }else if (dstaddress == "c076"){
-                            txt_color = ImVec4(1,0,1,1);
-                        }else if (dstaddress == "541a"){
-                            txt_color = ImVec4(0,1,1,1);
-                        }
 
+                        Packet packet(p);
+                        string dstaddress = packet.get_dstAddress();
+                        srand(stoi(dstaddress, nullptr, 16));
+                        float hsv_col = static_cast<float>(rand())/static_cast<float>(RAND_MAX);
+                        std::cout << hsv_col << std::endl;
+
+                        auto txt_color = ImVec4(1,1,1,1);
+                        
                         const bool item_is_selected = selection.contains(index);
                         ImGui::PushID(index);
+                        ImGui::PushStyleColor(ImGuiCol_TableRowBg, (ImVec4)ImColor::HSV(hsv_col, 0.6f, 0.6f));
+                        ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, (ImVec4)ImColor::HSV(hsv_col, 0.6f, 0.6f));
                         ImGui::TableNextRow(ImGuiTableRowFlags_None, 0.0f);
-                        
                         
                         ImGui::TableNextColumn();
                         //Setup selectable rows
@@ -375,11 +381,12 @@ int main(int argc, char const * argv[]){
                         ImGui::TableNextColumn();
                         ImGui::TextColored(txt_color,"10.147.20.40:%d", p.header.saddr);
                         ImGui::TableNextColumn();
-                        ImGui::TextColored(txt_color, "%s", p.header.daddr);
+                        ImGui::TextColored(txt_color, "%s", packet.get_dstAddress().c_str());
                         ImGui::TableNextColumn();
                         ImGui::TextColored(txt_color, "TCP");
                         index++;
 
+                        ImGui::PopStyleColor(2);
                         ImGui::PopID();
                     });
 
@@ -394,17 +401,78 @@ int main(int argc, char const * argv[]){
                 //Parse uint64_t payload as string
                 string payload_out = to_hash<uint64_t>(payload);
                 
-
-                // sprintf(payload_out, "%" PRIx64, payload);
-
-                // ImGui::TextWrapped(payload_out);
-
+                /*
+                Window for displaying payload                
+                */
                 ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(0, 0, 0, 100));
-                ImGui::BeginChild("Red", outer_size_value, true, ImGuiWindowFlags_None);
+                ImGui::BeginChild("payload", ImVec2(window_size.x/2, 0.0f), true, ImGuiWindowFlags_None);
                 ImGui::TextWrapped("%s", payload_out.c_str());
                 ImGui::EndChild();
                 ImGui::PopStyleColor();
+
+                /*
+                Window for displaying the routing table and client table
+                */
+                ImGui::SameLine();
+                routingTable rTable = router.getRoutingTable();
+                auto rtable = rTable.get_rTable();
+                auto rclients = rTable.get_clients();
+
+                // ImGui::Text("Routing Table");
+                // ImGui::SameLine();
+                // ImGui::Text("Client Table");
+                // if (ImGui::BeginListBox("##list1", ImVec2(window_size.x/2, 0.0f)))
+                // {
+                //     for(auto const& x : rtable)
+                //     {
+                //         ImGui::Text("Key: %s, Value: %s", x.first.c_str(), x.second.c_str());
+                //     }
+                //     ImGui::EndListBox();
+                // }
+
+                // ImGui::SameLine();
                 
+                // if (ImGui::BeginListBox("##list2"))
+                // {
+                //     for(auto const& x : rclients)
+                //     {
+                //         ImGui::Text("Key: %s, Value: %s", x.first.c_str(), &x.second);
+                //     }
+                //     ImGui::EndListBox();
+                // }
+                
+
+                if(ImGui::BeginTable("routing table", 1, ImGuiTableFlags_ScrollY|ImGuiTableFlags_ScrollX, ImVec2(window_size.x/4, 0.0f)))
+                {
+                    ImGui::TableSetupColumn("Routing Table");
+                    ImGui::TableHeadersRow();
+
+
+                    for(auto const& x : rtable)
+                    {
+                        ImGui::TableNextRow();
+                        ImGui::TableNextColumn();
+                        ImGui::Text("Key: %s, Value: %s", x.first.c_str(), x.second.c_str());
+                    }
+                    ImGui::EndTable();
+                }
+
+                ImGui::SameLine();
+               
+                if(ImGui::BeginTable("client table", 1, ImGuiTableFlags_ScrollY|ImGuiTableFlags_ScrollX, ImVec2(window_size.x/2, 0.0f)))
+                {
+                    ImGui::TableSetupColumn("Client Table");
+                    ImGui::TableHeadersRow();
+
+                    
+                    for(auto const& x : rclients)
+                    {
+                        ImGui::TableNextRow();
+                        ImGui::TableNextColumn();
+                        ImGui::Text("Key: %s, Value: %s", x.first.c_str(), x.second);
+                    }
+                    ImGui::EndTable();
+                }    
 
                 //scrolling window showing connected clients
                 std::map<string, boost::shared_ptr<cli_handler>> clients = router.ShowClients();
@@ -417,7 +485,7 @@ int main(int argc, char const * argv[]){
                 }
                 ImGui::EndChild();
 
-                ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+                ImGui::Text("Application average %.3f ms/frame (%.1f FPS), Window Size (%f, %f)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate, window_size.x, window_size.y);
                 
             }
 

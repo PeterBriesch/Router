@@ -52,15 +52,20 @@ class Packet
         Packet(net::Packet::packet packet){pkt = packet;}
 
         void dump(){
+
+            char dest_address[INET6_ADDRSTRLEN];
+            inet_ntop(AF_INET6, pkt.header.daddr, dest_address, INET6_ADDRSTRLEN);
             std::cout << pkt.header.version << " | " << pkt.header.flowLabel << std::endl;
             std::cout << pkt.header.length << " | " << pkt.header.hopLimit << std::endl;
             std::cout << pkt.header.saddr << std::endl;
-            std::cout << pkt.header.daddr << std::endl;
+            std::cout << dest_address << std::endl;
             std::cout << pkt.payload.payload << std::endl;
         };
 
         std::string get_dstAddress(){
-            std::string s (pkt.header.daddr, pkt.header.daddr + sizeof(pkt.header.daddr)/sizeof(pkt.header.daddr[0]));
+            char dest_address[INET6_ADDRSTRLEN];
+            inet_ntop(AF_INET6, pkt.header.daddr, dest_address, INET6_ADDRSTRLEN);
+            std::string s (dest_address);
             return s;
 
         };
@@ -76,7 +81,7 @@ class Packet
 
         }
 
-        void packet_builder(uint32_t saddr, unsigned char daddr[16], uint64_t data){
+        void packet_builder(uint32_t saddr, unsigned char daddr[INET6_ADDRSTRLEN], uint64_t data){
             net::Packet::header header;
             net::Packet::payload payload;
 
@@ -97,8 +102,9 @@ class Packet
         net::Packet::packet get_packet(){
             return pkt;
         }
+        
     private:
-        net::Packet::header buildHeader(uint32_t saddr, unsigned char daddr[16]){
+        net::Packet::header buildHeader(uint32_t saddr, unsigned char daddr[INET6_ADDRSTRLEN]){
 
             uint8_t version=0;
             uint32_t flowLabel=0;
@@ -109,7 +115,7 @@ class Packet
     
             net::Packet::header header = {version, flowLabel, length, nextHeader, hopLimit, saddr};
             header.timestamp = timestamp;
-            memcpy(header.daddr, daddr, sizeof(unsigned char[16]));
+            inet_pton(AF_INET6, (char*)daddr, header.daddr);
 
             return header;
         }
