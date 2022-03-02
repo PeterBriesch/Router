@@ -46,14 +46,15 @@ class routingTable
             inet_ntop(AF_INET, &(sock_info.sin_addr), address_s, INET_ADDRSTRLEN);
             string port_s = to_string(sock_info.sin_port);
             string ip (address_s);
+            string ip_port = ip + ":" + port_s;
 
-            std::cout << address_s << ":" << port_s << std::endl;
+            std::cout << ip_port << std::endl;
 
-            string cli_id = table.at(ip+":"+port_s);
 
             //remove cli from the client map
-            this->client.erase(cli_id);
+            this->client.erase(ip_port);
             sock.close();
+
         }
 
         void cli_insert(pointer cli, int port_in, boost::asio::ip::address addr_in)
@@ -71,18 +72,19 @@ class routingTable
             // parse ip::address to string
             string ip = sockaddr_tostring(addr_in);
             string port = to_string(port_in);
+            string ip_port = ip + ":" + port;
 
             string ip_hash = iptohash(port, ip).substr(0, 16);
 
             string cli_id = hashtoIPv6(ip_hash);
 
             //add ip and hash of ip to routingTable
-            this->table.emplace(ip+":"+port, cli_id);
-            inFile << ip << ":" << port << " " << cli_id << "\n";
+            this->table.emplace(cli_id, ip_port);
+            inFile << cli_id << " " << ip_port << "\n";
             inFile.close();
 
             //add hash of ip and pointer to clientTable
-            this->client.emplace(cli_id,cli);
+            this->client.emplace(ip_port, cli);
         }
 
         string query_table(string q)

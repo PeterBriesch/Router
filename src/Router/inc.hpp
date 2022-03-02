@@ -48,7 +48,7 @@ string hashtoIPv6(string hash)
             count++;
 
             //check if its reached 4th position
-            if((count-n)%4 == 0 && c != *hash.end()){
+            if((count-n)%4 == 0 && c != hash.back()){
                 ipv6[count] = ':';
                 count++;
                 n++;
@@ -65,6 +65,7 @@ string hashtoIPv6(string hash)
             ipv6[count] = ':';
             ipv6[count+1] = ':';
         }
+        ipv6[count+2] = '\0';
         
     }
     else{

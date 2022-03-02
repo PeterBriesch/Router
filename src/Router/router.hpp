@@ -138,20 +138,21 @@ class cli_handler : public boost::enable_shared_from_this<cli_handler>, public r
             try{
                 //read header src address check first 8 char of table and match to id
                 unsigned char dstaddress[INET6_ADDRSTRLEN];
-                inet_ntop(AF_INET6, data.header.daddr, (char*)dstaddress, INET6_ADDRSTRLEN);
+                pointer dest;
                 
-                cout << dstaddress << endl;
-                cout << data.header.saddr << endl;
 
                 /* 
                 Get pointer to client from map
                 Router attempts to route the data to the specified destination address
                 If the specified address is not in the routing table then send the data to the first client in the routing table
                 */
-                pointer dest;
                 try{
+                    inet_ntop(AF_INET6, data.header.daddr, (char*)dstaddress, INET6_ADDRSTRLEN);
+                
+                    cout << dstaddress << endl;
+                    cout << data.header.saddr << endl;
                     //query connected piers for destination address
-                    dest = rTable_ptr->query_clients((char*)dstaddress);
+                    dest = rTable_ptr->query_clients(rTable_ptr->query_table((char*)dstaddress));
                 }catch(const std::exception& e){
                     std::cerr << "Client not connected to router. Routing to first client in routing table" << endl;
                     //if query fails then rout to first connected pier in router list
@@ -160,6 +161,8 @@ class cli_handler : public boost::enable_shared_from_this<cli_handler>, public r
                     dest = it->second;
                 }
                 cout << "Routing to " << dest->socket().remote_endpoint() << endl; 
+
+                /*TODO build new packet to forward with source address set to routers address*/
 
                 //Write to specified face
                 boost::asio::write(dest->socket(), boost::asio::buffer(&data, sizeof(data)));
@@ -222,7 +225,7 @@ class Router
     public:
     
     //constructor for accepting connection from client
-    Router(boost::asio::io_service& io_service, int port, std::string address, int port_con, boost::asio::io_service& router_ioservice): acceptor_(io_service, tcp::endpoint(tcp::v4(), port)), router_sock(io_service)
+    Router(boost::asio::io_service& io_service, int port, std::string address, int port_con, boost::asio::io_service& router_ioservice): acceptor_(io_service, tcp::endpoint(boost::asio::ip::address::from_string("10.147.20.40"), port)), router_sock(router_ioservice)
     {
 
         cout << "Router LISTENING on " << acceptor_.local_endpoint() << endl;
@@ -230,6 +233,7 @@ class Router
         //  Connect to router 
         try{
             if(acceptor_.local_endpoint().port() != 8080){
+                std::cout << address << port_con << std::endl;
                 router_connect(address, port_con);
             }
         }catch(const std::exception &er){
@@ -249,12 +253,13 @@ class Router
         {
             std::cerr << e.what() << endl;
         }
-        
+
         connection->start();
+
         //store client in map
         rTable.cli_insert(connection, connection->socket().remote_endpoint().port(), connection->socket().remote_endpoint().address());
         print_clients(rTable.get_clients());
-            
+                    
         start_accept();
     }
 
@@ -291,18 +296,20 @@ class Router
         
         std::lock_guard<std::mutex> guard(cache_mutex);
 
+        //connect socket to endpoint
+        router_sock.connect(tcp::endpoint(boost::asio::ip::address::from_string(address), port));
         //create cli_handler pointer
         pointer routerCon = cli_handler::create(router_sock, cache, rTable);
         // boost::asio::ip::tcp::acceptor::reuse_address option(true); 
         // // routerCon->socket().set_option(option);
         // routerCon->socket().bind(tcp::endpoint(tcp::v4(), port));
-        //connect socket to endpoint
-        routerCon->socket().connect(tcp::endpoint(boost::asio::ip::address::from_string(address), port));
         //start the client handler
         routerCon->start();
         //insert the pointer to the 
         rTable.cli_insert(routerCon, routerCon->socket().remote_endpoint().port(), routerCon->socket().remote_endpoint().address());
         print_clients(rTable.get_clients());
+        
+       
     } 
 
     routingTable getRoutingTable(void)
