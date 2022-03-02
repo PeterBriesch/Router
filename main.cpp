@@ -116,6 +116,9 @@ int main(int argc, char const * argv[]){
     bool show_spreadsheet = false;
     bool show_analyser = true;
     bool show_data = false;
+    bool show_routingTable = false;
+
+
     int packet_count[] = {0, 0, 0}; //must be changed to an array of int for scalability
     std::vector<net::Packet::packet> cache;
     net::Packet::packet packet_temp;
@@ -166,6 +169,17 @@ int main(int argc, char const * argv[]){
             ImGui::End();
         }
 
+
+         /*
+            Window for displaying the routing table and client table
+        */  
+        if(show_routingTable){
+
+            show_table(router.getRoutingTable(), show_routingTable);
+
+        }
+
+
         if(show_my_window)
         {
 
@@ -198,13 +212,14 @@ int main(int argc, char const * argv[]){
 
             ImGui::Begin("My Window", &show_my_window, window_flags);
 
-            const ImGuiViewport* main_viewport = ImGui::GetMainViewport();
-            ImGui::SetNextWindowPos(ImVec2(main_viewport->WorkPos.x + 650, main_viewport->WorkPos.y + 20), ImGuiCond_FirstUseEver);
-            ImGui::SetNextWindowSize(ImVec2(550, 680), ImGuiCond_FirstUseEver);
+            // e.g. Leave a fixed amount of width for labels (by passing a negative value), the rest goes to widgets.
+            ImGui::PushItemWidth(ImGui::GetFontSize() * -12);
 
             auto window_size = ImGui::GetWindowSize();
 
-
+            /*
+                Menu Bar for accessing different tools
+            */
             if(ImGui::BeginMenuBar())
             {
                 if(ImGui::BeginMenu("Menu")){
@@ -216,11 +231,18 @@ int main(int argc, char const * argv[]){
                         show_spreadsheet = false;
                         show_analyser = true;
                     }
+                    if(ImGui::MenuItem("Routing table")){
+                        show_routingTable = true;
+
+                    }
                     ImGui::EndMenu();
                 }
                 ImGui::EndMenuBar();
             }
 
+            /*
+                Spreadsheet tool for network programming and packet filtering
+            */
             if(show_spreadsheet)
             {
                 router.ShowCache(cache);
@@ -287,6 +309,11 @@ int main(int argc, char const * argv[]){
                 }
                 ImGui::PopStyleVar();
             }
+
+            /*
+                Analyiser for viewing the stream of packets 
+                coming through the router
+            */
             if(show_analyser)
             {
 
@@ -335,7 +362,6 @@ int main(int argc, char const * argv[]){
                         string dstaddress = packet.get_dstAddress();
                         srand(stoi(dstaddress, nullptr, 16));
                         float hsv_col = static_cast<float>(rand())/static_cast<float>(RAND_MAX);
-                        std::cout << hsv_col << std::endl;
 
                         auto txt_color = ImVec4(1,1,1,1);
                         
@@ -369,10 +395,6 @@ int main(int argc, char const * argv[]){
                                 selection.push_back(index);
                             }
                         }
-
-
-                        // convert uint64_t destination to string
-
 
                         ImGui::TableNextColumn();
                         ImGui::TextColored(txt_color, "%lld", (long long)p.header.timestamp);
@@ -408,71 +430,7 @@ int main(int argc, char const * argv[]){
                 ImGui::BeginChild("payload", ImVec2(window_size.x/2, 0.0f), true, ImGuiWindowFlags_None);
                 ImGui::TextWrapped("%s", payload_out.c_str());
                 ImGui::EndChild();
-                ImGui::PopStyleColor();
-
-                /*
-                Window for displaying the routing table and client table
-                */
-                ImGui::SameLine();
-                routingTable rTable = router.getRoutingTable();
-                auto rtable = rTable.get_rTable();
-                auto rclients = rTable.get_clients();
-
-                // ImGui::Text("Routing Table");
-                // ImGui::SameLine();
-                // ImGui::Text("Client Table");
-                // if (ImGui::BeginListBox("##list1", ImVec2(window_size.x/2, 0.0f)))
-                // {
-                //     for(auto const& x : rtable)
-                //     {
-                //         ImGui::Text("Key: %s, Value: %s", x.first.c_str(), x.second.c_str());
-                //     }
-                //     ImGui::EndListBox();
-                // }
-
-                // ImGui::SameLine();
-                
-                // if (ImGui::BeginListBox("##list2"))
-                // {
-                //     for(auto const& x : rclients)
-                //     {
-                //         ImGui::Text("Key: %s, Value: %s", x.first.c_str(), &x.second);
-                //     }
-                //     ImGui::EndListBox();
-                // }
-                
-
-                if(ImGui::BeginTable("routing table", 1, ImGuiTableFlags_ScrollY|ImGuiTableFlags_ScrollX, ImVec2(window_size.x/4, 0.0f)))
-                {
-                    ImGui::TableSetupColumn("Routing Table");
-                    ImGui::TableHeadersRow();
-
-
-                    for(auto const& x : rtable)
-                    {
-                        ImGui::TableNextRow();
-                        ImGui::TableNextColumn();
-                        ImGui::Text("Key: %s, Value: %s", x.first.c_str(), x.second.c_str());
-                    }
-                    ImGui::EndTable();
-                }
-
-                ImGui::SameLine();
-               
-                if(ImGui::BeginTable("client table", 1, ImGuiTableFlags_ScrollY|ImGuiTableFlags_ScrollX, ImVec2(window_size.x/2, 0.0f)))
-                {
-                    ImGui::TableSetupColumn("Client Table");
-                    ImGui::TableHeadersRow();
-
-                    
-                    for(auto const& x : rclients)
-                    {
-                        ImGui::TableNextRow();
-                        ImGui::TableNextColumn();
-                        ImGui::Text("Key: %s, Value: %s", x.first.c_str(), x.second);
-                    }
-                    ImGui::EndTable();
-                }    
+                ImGui::PopStyleColor();                  
 
                 //scrolling window showing connected clients
                 std::map<string, boost::shared_ptr<cli_handler>> clients = router.ShowClients();
@@ -489,6 +447,7 @@ int main(int argc, char const * argv[]){
                 
             }
 
+            ImGui::PopItemWidth();
             ImGui::End();
         }
 
@@ -497,6 +456,7 @@ int main(int argc, char const * argv[]){
         int display_w, display_h;
         glfwGetFramebufferSize(window, &display_w, &display_h);
         glViewport(0, 0, display_w, display_h);
+        glfwSetWindowSize(window, 1920, 1080);
         glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
