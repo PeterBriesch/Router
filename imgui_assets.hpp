@@ -23,41 +23,6 @@ void show_table(routingTable rTable, bool &show_routingTable){
     auto rtable = rTable.get_rTable();
     auto rclients = rTable.get_clients();
 
-    const auto w = (window_size.x/2.5f);
-
-    // ImGui::BeginChild("routing table", ImVec2(w, 0));
-    
-    // ImGui::Text("Routing Table");
-    // // list box that displayes entire routing table
-    // if (ImGui::BeginListBox("##list1", ImVec2(w, 0)))
-    // {
-    //     for(auto const& x : rtable)
-    //     {
-    //         ImGui::Text("Key: %s, Value: %s", x.first.c_str(), x.second.c_str());
-    //     }
-    //     ImGui::EndListBox();
-    // }
-
-    // ImGui::EndChild();
-    
-
-    // ImGui::SameLine();ma
-
-    // ImGui::BeginChild("client Table");
-    
-    // ImGui::Text("Client Table");
-
-    // // List box displaying entire client table 
-    // if (ImGui::BeginListBox("##list2"))
-    // {
-    //     for(auto const& x : rclients)
-    //     {
-    //         ImGui::Text("Key: %s, Value: %s", x.first.c_str(), &x.second);
-    //     }
-    //     ImGui::EndListBox();
-    // }
-
-    // ImGui::EndChild();
     auto table_flags = ImGuiTableFlags_ScrollY|ImGuiTableFlags_ScrollX;
     
     
@@ -95,4 +60,19 @@ void show_table(routingTable rTable, bool &show_routingTable){
 
     // ImGui::PopItemWidth();
     ImGui::End();
+}
+
+void CountPacket(string match, string compare, bool update, std::string &cell)
+{
+    int counter = stoi(cell);
+    auto start = match.find("(");
+    auto end = match.find(")");
+    string comparitor = match.substr(start,end);
+
+    if(compare.substr(0,4) == comparitor && update)
+    {
+        counter++;
+    }
+
+    cell = to_string(counter);
 }

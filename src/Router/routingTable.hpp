@@ -79,8 +79,11 @@ class routingTable
             string cli_id = hashtoIPv6(ip_hash);
 
             //add ip and hash of ip to routingTable
-            this->table.emplace(cli_id, ip_port);
-            inFile << cli_id << " " << ip_port << "\n";
+            if(!(this->table.count(cli_id))){
+                this->table.emplace(cli_id, ip_port);
+                inFile << cli_id << " " << ip_port << "\n";
+            }
+            
             inFile.close();
 
             //add hash of ip and pointer to clientTable
@@ -94,9 +97,8 @@ class routingTable
 
         pointer query_clients(string q)
         {
-            string search = table.at(q);
 
-            return client.at(search);
+            return client.at(q);
         }
 
         std::map<string, pointer> get_clients()

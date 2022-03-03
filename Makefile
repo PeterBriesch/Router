@@ -90,7 +90,7 @@ build:
 	./bootstrap.sh --prefix=/usr/local/
 	./b2 install 
 docker:
-	g++ -Wall -g -std=c++17 -o router router.cpp Node/helper.cpp -pthread -DBOOST_ERROR_CODE_HEADER_ONLY -lcryptopp
+	g++ -Wall -g -std=c++17 -o router ./src/Router/router.cpp ./src/Miner/mine.cpp $(CXXFLAGS) $(LIBS) -I./src/Router -I./src/Miner
 
 	
 # prosumer:
