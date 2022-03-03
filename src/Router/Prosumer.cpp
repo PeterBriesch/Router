@@ -233,7 +233,7 @@ class Client :public boost::enable_shared_from_this<Client>
         try{
             
             uint32_t ip_int = socket.local_endpoint().port();
-            if(ip_int != 8081){
+            if(ip_int != 8081 && ip_int != 8085){
                 //iterate counter
                 count++;
 
@@ -246,7 +246,7 @@ class Client :public boost::enable_shared_from_this<Client>
                 // inet_ntop(AF_INET6, &(antelope), (char*)temp, INET6_ADDRSTRLEN);
                 // std::cout << "THE IPV6 address is :" <<  temp << std::endl;
 
-                static unsigned char dest[][INET6_ADDRSTRLEN] = {"3267:3c3b:1a07:7d33::", "c076:6f12:85c1:f25a:bcaf:48cb:ef7c:9453", "541a:208f:f1eb:4d61:bcaf:48cb:ef7c:9453"};
+                static unsigned char dest[][INET6_ADDRSTRLEN] = {"bcaf:48cb:ef7c:9453::", "c076:6f12:85c1:f25a:bcaf:48cb:ef7c:9453", "541a:208f:f1eb:4d61:bcaf:48cb:ef7c:9453"};
                 int rand_index = rand() % 3;
                 pkt.header.saddr = ip_int;
                 //convert counter to string
@@ -258,7 +258,7 @@ class Client :public boost::enable_shared_from_this<Client>
                 hash = strtoul(data_out.c_str(), &end, 16);
 
                 Packet packet (pkt);
-                packet.packet_builder(ip_int, dest[0], hash);
+                packet.packet_builder(ip_int, dest[rand_index], hash);
 
                 net::Packet::packet snd_pkt = packet.get_packet();
 

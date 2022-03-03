@@ -6,6 +6,8 @@
 #include <fstream>
 #include <chrono>
 #include <stdio.h>
+#include <algorithm>
+#include <functional>
 #include "Miner/mine.hpp"
 
 class cli_handler;
@@ -75,7 +77,8 @@ string hashtoIPv6(string hash)
     return ipv6;
 }
 
-string sockaddr_tostring(boost::asio::ip::address adr)
+template<class T>
+string sockaddr_tostring(T adr)
 {
     std::ostringstream os;
     os << adr;

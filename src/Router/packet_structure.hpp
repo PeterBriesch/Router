@@ -16,22 +16,34 @@ namespace net
             uint16_t length=0;
             uint8_t nextHeader=0;
             uint8_t hopLimit=0;
-            uint32_t saddr;
-            unsigned char daddr[16];
-            std::time_t timestamp;
+            uint32_t saddr = 0;
+            unsigned char daddr[16] = "";
+            std::time_t timestamp = 0;
 
+            bool operator ==(const net::Packet::header& a)
+            {
+                return version == a.version && flowLabel == a.flowLabel && length == a.length && nextHeader == a.nextHeader &&
+                        hopLimit == a.hopLimit && saddr == a.saddr && daddr == a.daddr && timestamp == a.timestamp;
+            }
 
         };
 
         struct payload
         {
             uint64_t payload;
+            bool operator ==(const net::Packet::payload& a)
+            {
+                return payload == a.payload;
+            }
         };
 
         struct packet
         {
             net::Packet::header header;
             net::Packet::payload payload;
+            bool operator ==(const net::Packet::packet& a){
+                return header == a.header && payload == a.payload;
+            }
         };
     }
 }

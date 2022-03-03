@@ -35,25 +35,28 @@ class cli_handler : public boost::enable_shared_from_this<cli_handler>, public r
         // Clients stores shared pointers to cli_handler objects
         enum{ max_length = 2048};
         net::Packet::packet data;
+        net::Packet::packet *new_pkt;
         std::vector<net::Packet::packet> *cache;
         routingTable *rTable_ptr;
 
     public: 
         
-        cli_handler(tcp::socket& io_service, std::vector<net::Packet::packet> &cache_f, routingTable &rTable): sock(std::move(io_service)){
+        cli_handler(tcp::socket& io_service, std::vector<net::Packet::packet> &cache_f, routingTable &rTable, net::Packet::packet &pkt): sock(std::move(io_service)){
             //copy address to cache
             cache = &cache_f;
             //copy address to routingTable
             rTable_ptr = &rTable;
+            //copy address to packet
+            new_pkt = &pkt;
 
             inet_pton(AF_INET, sockaddr_tostring(sock.remote_endpoint().address()).c_str(), &(sock_info.sin_addr));
             sock_info.sin_port = sock.remote_endpoint().port();
         }
 
         // creating the pointer
-        static pointer create(tcp::socket& io_service, std::vector<net::Packet::packet> &cache, routingTable &rTable)
+        static pointer create(tcp::socket& io_service, std::vector<net::Packet::packet> &cache, routingTable &rTable, net::Packet::packet &pkt)
         {
-            return pointer(new cli_handler(io_service, cache, rTable));
+            return pointer(new cli_handler(io_service, cache, rTable, pkt));
         }
 
         //socket creation
@@ -73,12 +76,6 @@ class cli_handler : public boost::enable_shared_from_this<cli_handler>, public r
                                 boost::asio::placeholders::error,
                                 boost::asio::placeholders::bytes_transferred));
                 
-                // sock.async_write_some(
-                //     boost::asio::buffer(message, max_length),
-                //     boost::bind(&cli_handler::handle_write,
-                //                 shared_from_this(),
-                //                 boost::asio::placeholders::error,
-                //                 boost::asio::placeholders::bytes_transferred));
             }catch(const std::exception &err){
                 std::cerr << "Failed to async_read: " << err.what() << std::endl;
                 rTable_ptr->dequeue_clients(sock, sock_info);
@@ -93,8 +90,13 @@ class cli_handler : public boost::enable_shared_from_this<cli_handler>, public r
             if(!err){
                 //cache packet
                 cache_packet();
+                string client = sockaddr_tostring(socket().remote_endpoint());
 
-                cout << "Router received data from [Client " << socket().remote_endpoint() << "] " << endl;
+                *new_pkt = data;
+
+                printf("Router received %ld bytes from [Client %s]\n", bytes_transferred, client.c_str());
+
+                // cout << "Router received data from [Client " << socket().remote_endpoint() << "] " << endl;
 
                 forward_packet();
                 
@@ -112,7 +114,8 @@ class cli_handler : public boost::enable_shared_from_this<cli_handler>, public r
         void handle_write(const boost::system::error_code& err, size_t bytes_transferred)
         {
             if(!err){
-                cout << "[21e8::router] Router routed message!" << endl;
+                printf("[21e8::router] Router sent %ld bytes.\n\n", bytes_transferred);
+                // cout << "[21e8::router] Router sent  message!" << endl;
             }else{
                 std::cerr << "handle_write error: " << err.message() << endl;
                 // Remove socket from map
@@ -122,16 +125,6 @@ class cli_handler : public boost::enable_shared_from_this<cli_handler>, public r
             start();
         }
 
-        // cli_handler::pointer query_routingTable(string query){
-        //     cli_handler::pointer dest;
-
-        //     string address = routingTable.at(query);
-
-            
-
-        //     return dest;
-        // }
-
         void forward_packet()
         {
 
@@ -139,7 +132,6 @@ class cli_handler : public boost::enable_shared_from_this<cli_handler>, public r
                 //read header src address check first 8 char of table and match to id
                 unsigned char dstaddress[INET6_ADDRSTRLEN];
                 pointer dest;
-                
 
                 /* 
                 Get pointer to client from map
@@ -148,26 +140,32 @@ class cli_handler : public boost::enable_shared_from_this<cli_handler>, public r
                 */
                 try{
                     inet_ntop(AF_INET6, data.header.daddr, (char*)dstaddress, INET6_ADDRSTRLEN);
-                
-                    cout << dstaddress << endl;
-                    cout << data.header.saddr << endl;
+                    string table_query ((char*)dstaddress);
+
                     //query connected piers for destination address
-                    dest = rTable_ptr->query_clients(rTable_ptr->query_table((char*)dstaddress));
+                    dest = rTable_ptr->query_clients(rTable_ptr->query_table(table_query));
+
                 }catch(const std::exception& e){
-                    std::cerr << "Client not connected to router. Routing to first client in routing table" << endl;
+                    std::cerr << "Client not connected to router. Routing to first client in routing table: " << e.what() << endl;
                     //if query fails then rout to first connected pier in router list
                     auto clients = rTable_ptr->get_clients();
                     auto it = clients.begin();
                     dest = it->second;
                 }
-                cout << "Routing to " << dest->socket().remote_endpoint() << endl; 
+                cout << "[21e8::router] Routing to " << dest->socket().remote_endpoint() << endl; 
 
                 /*TODO build new packet to forward with source address set to routers address*/
 
                 //Write to specified face
-                boost::asio::write(dest->socket(), boost::asio::buffer(&data, sizeof(data)));
+                dest->socket().async_write_some(
+                    boost::asio::buffer(&data, sizeof(data)),
+                    boost::bind(&cli_handler::handle_write,
+                                shared_from_this(),
+                                boost::asio::placeholders::error,
+                                boost::asio::placeholders::bytes_transferred));
 
-                cout << "Packet successfully routed\n" << endl;
+                // boost::asio::write(dest->socket(), boost::asio::buffer(&data, sizeof(data)));
+
             }catch(const std::exception &err){
                 std::cerr << "failed to forward packet: " << err.what() << std::endl;
                 rTable_ptr->dequeue_clients(sock, sock_info);
@@ -202,6 +200,7 @@ class Router
     routingTable rTable;
     std::vector<net::Packet::packet> cache;
     string cli_id;
+    net::Packet::packet pkt;
 
     void start_accept()
     {
@@ -213,7 +212,7 @@ class Router
                 if(!er){
 
                     std::lock_guard<std::mutex> guard(cache_mutex);
-                    pointer connection = cli_handler::create(socket, cache, rTable);
+                    pointer connection = cli_handler::create(socket, cache, rTable, pkt);
                     handle_accept(connection);
 
                 }
@@ -278,11 +277,22 @@ class Router
     bool ShowCache(std::vector<net::Packet::packet> &cache1){
         if(!cache.empty()){
             std::lock_guard<std::mutex> guard(cache_mutex);
-
+            if(std::equal(cache1.begin(), cache1.end(), cache.begin())){
+                cache1 = cache;
+                return false;
+            }
             cache1 = cache;
         }
-        return true;
+        return false;
         
+    }
+
+    bool ShowPacket(net::Packet::packet &packet){
+        packet = pkt;
+        if (packet == pkt){
+            return false;
+        }
+        return true;
     }
 
     static void print_clients(std::map<string, boost::shared_ptr<cli_handler>> cli){
@@ -299,7 +309,7 @@ class Router
         //connect socket to endpoint
         router_sock.connect(tcp::endpoint(boost::asio::ip::address::from_string(address), port));
         //create cli_handler pointer
-        pointer routerCon = cli_handler::create(router_sock, cache, rTable);
+        pointer routerCon = cli_handler::create(router_sock, cache, rTable, pkt);
         // boost::asio::ip::tcp::acceptor::reuse_address option(true); 
         // // routerCon->socket().set_option(option);
         // routerCon->socket().bind(tcp::endpoint(tcp::v4(), port));
