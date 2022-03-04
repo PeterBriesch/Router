@@ -62,17 +62,18 @@ void show_table(routingTable rTable, bool &show_routingTable){
     ImGui::End();
 }
 
-void CountPacket(string match, string compare, bool update, std::string &cell)
+std::string CountPacket(string match, string compare, bool update, std::string &cell)
 {
     int counter = stoi(cell);
     auto start = match.find("(");
     auto end = match.find(")");
     string comparitor = match.substr(start,end);
 
-    if(compare.substr(0,4) == comparitor && update)
+    // printf("compare = %s comparitor = %s", compare.substr(0,4).c_str(), comparitor);
+    if((compare.substr(0,4)).compare(comparitor)&& update)
     {
         counter++;
     }
 
-    cell = to_string(counter);
+    return to_string(counter);
 }

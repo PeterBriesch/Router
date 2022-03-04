@@ -35,7 +35,7 @@ int main(int argc, char const * argv[]){
         });
 
     /* USER VARIABLES */
-    std::vector<std::string> output_bufs(6*12); // output storage for cell functions
+    std::vector<std::string> output_bufs = {"0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0",}; // output storage for cell functions
 
     // Setup window
     glfwSetErrorCallback(glfw_error_callback);
@@ -183,11 +183,7 @@ int main(int argc, char const * argv[]){
             show_table(router.getRoutingTable(), show_routingTable);
 
         }
-
-
-        if(show_my_window)
-        {
-
+        if(show_spreadsheet){
             static bool no_titlebar = false;
             static bool no_scrollbar = false;
             static bool no_menu = false;
@@ -199,6 +195,7 @@ int main(int argc, char const * argv[]){
             static bool no_bring_to_front = false;
             static bool no_docking = true;
             static bool unsaved_document = false;
+            bool update = true;
 
             ImGuiWindowFlags window_flags = 0;
             if (no_titlebar)        window_flags |= ImGuiWindowFlags_NoTitleBar;
@@ -215,35 +212,8 @@ int main(int argc, char const * argv[]){
 
             bool AutoScroll = true;
 
-            ImGui::Begin("My Window", &show_my_window, window_flags);
+            ImGui::Begin("spreadsheet", &show_my_window, window_flags);
 
-            // e.g. Leave a fixed amount of width for labels (by passing a negative value), the rest goes to widgets.
-            ImGui::PushItemWidth(ImGui::GetFontSize() * -12);
-
-            auto window_size = ImGui::GetWindowSize();
-
-            /*
-                Menu Bar for accessing different tools
-            */
-            if(ImGui::BeginMenuBar())
-            {
-                if(ImGui::BeginMenu("Menu")){
-                    if(ImGui::MenuItem("Spread sheet")){
-                        show_spreadsheet = true;
-                        show_analyser = false;
-                    }
-                    if(ImGui::MenuItem("Packet Analyser")){
-                        show_spreadsheet = false;
-                        show_analyser = true;
-                    }
-                    if(ImGui::MenuItem("Routing table")){
-                        show_routingTable = true;
-
-                    }
-                    ImGui::EndMenu();
-                }
-                ImGui::EndMenuBar();
-            }
 
             /*
                 Spreadsheet tool for network programming and packet filtering
@@ -258,7 +228,8 @@ int main(int argc, char const * argv[]){
 
                 // Get packet from router
                 static net::Packet::packet pkt;
-                bool update = router.ShowPacket(pkt);
+                update = router.ShowPacket(pkt);
+                ImGui::RadioButton("update", &update);
 
                 // Start table
                 // if(ImGui::BeginTable("row header", 6, flags2)){
@@ -327,7 +298,7 @@ int main(int argc, char const * argv[]){
                             inet_ntop(AF_INET6, pkt.header.daddr, temp, INET6_ADDRSTRLEN);
                             string dstaddress(temp);
 
-                            CountPacket(match, dstaddress, update, output_bufs[cell]); //function used to count the specific packets (result stored in output_bufs)
+                            output_bufs[cell] = CountPacket(match, dstaddress, update, output_bufs[cell]); //function used to count the specific packets (result stored in output_bufs)
 
                             ImGui::Text(output_bufs[cell].c_str());
 
@@ -347,6 +318,71 @@ int main(int argc, char const * argv[]){
                 }
                 ImGui::PopStyleVar();
             }
+            ImGui::End();
+        }
+
+        if(show_my_window)
+        {
+
+            static bool no_titlebar = false;
+            static bool no_scrollbar = false;
+            static bool no_menu = false;
+            static bool no_move = false;
+            static bool no_resize = false;
+            static bool no_collapse = false;
+            static bool no_nav = false;
+            static bool no_background = false;
+            static bool no_bring_to_front = false;
+            static bool no_docking = true;
+            static bool unsaved_document = false;
+            bool update = true;
+
+            ImGuiWindowFlags window_flags = 0;
+            if (no_titlebar)        window_flags |= ImGuiWindowFlags_NoTitleBar;
+            if (no_scrollbar)       window_flags |= ImGuiWindowFlags_NoScrollbar;
+            if (!no_menu)           window_flags |= ImGuiWindowFlags_MenuBar;
+            if (no_move)            window_flags |= ImGuiWindowFlags_NoMove;
+            if (no_resize)          window_flags |= ImGuiWindowFlags_NoResize;
+            if (no_collapse)        window_flags |= ImGuiWindowFlags_NoCollapse;
+            if (no_nav)             window_flags |= ImGuiWindowFlags_NoNav;
+            if (no_background)      window_flags |= ImGuiWindowFlags_NoBackground;
+            if (no_bring_to_front)  window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus;
+            if (no_docking)         window_flags |= ImGuiWindowFlags_NoDocking;
+            if (unsaved_document)   window_flags |= ImGuiWindowFlags_UnsavedDocument;
+
+            bool AutoScroll = true;
+
+            ImGui::Begin("My Window", &show_my_window, window_flags);
+
+            // e.g. Leave a fixed amount of width for labels (by passing a negative value), the rest goes to widgets.
+            ImGui::PushItemWidth(ImGui::GetFontSize() * -12);
+
+            auto window_size = ImGui::GetWindowSize();
+
+            /*
+                Menu Bar for accessing different tools
+            */
+            if(ImGui::BeginMenuBar())
+            {
+                if(ImGui::BeginMenu("Menu")){
+                    if(ImGui::MenuItem("Spread sheet")){
+                        show_spreadsheet = true;
+                        // show_analyser = false;
+                    }
+                    if(ImGui::MenuItem("Packet Analyser")){
+                        show_spreadsheet = false;
+                        show_analyser = true;
+                    }
+                    if(ImGui::MenuItem("Routing table")){
+                        show_routingTable = true;
+
+                    }
+                    ImGui::EndMenu();
+                }
+                ImGui::EndMenuBar();
+            }
+
+            
 
 
 
@@ -409,12 +445,12 @@ int main(int argc, char const * argv[]){
                         srand(stoi(dstaddress, nullptr, 16));
                         float hsv_col = static_cast<float>(rand())/static_cast<float>(RAND_MAX);
 
-                        auto txt_color = ImVec4(1,1,1,1);
+                        auto txt_color = ImVec4(151, 255, 34, 255);
                         
                         const bool item_is_selected = selection.contains(index);
                         ImGui::PushID(index);
-                        ImGui::PushStyleColor(ImGuiCol_TableRowBg, (ImVec4)ImColor::HSV(hsv_col, 0.6f, 0.6f));
-                        ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, (ImVec4)ImColor::HSV(hsv_col, 0.6f, 0.6f));
+                        // ImGui::PushStyleColor(ImGuiCol_TableRowBg, (ImVec4)ImColor::HSV(hsv_col, 0.6f, 0.6f));
+                        // ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, (ImVec4)ImColor::HSV(hsv_col, 0.6f, 0.6f));
                         ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(151,255,34,255));
 
                         ImGui::TableNextRow(ImGuiTableRowFlags_None, 0.0f);
@@ -456,7 +492,7 @@ int main(int argc, char const * argv[]){
                         ImGui::TextColored(txt_color, "TCP");
                         index++;
 
-                        ImGui::PopStyleColor(3);
+                        ImGui::PopStyleColor(1);
                         ImGui::PopID();
                     });
 

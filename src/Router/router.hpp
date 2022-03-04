@@ -288,11 +288,13 @@ class Router
     }
 
     bool ShowPacket(net::Packet::packet &packet){
-        packet = pkt;
-        if (packet == pkt){
+        if (packet.payload.payload == pkt.payload.payload){
             return false;
         }
+        packet = pkt;
         return true;
+        
+        
     }
 
     static void print_clients(std::map<string, boost::shared_ptr<cli_handler>> cli){
