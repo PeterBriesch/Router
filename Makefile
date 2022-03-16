@@ -15,7 +15,7 @@ LINUX_GL_LIBS = -lGL
 
 CXXFLAGS = -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends -I$(SRC_DIR) 
 CXXFLAGS += -std=c++17 -g -Wall -Wformat 
-CXXFLAGS += -pthread -DBOOST_ERROR_CODE_HEADER_ONLY -lcryptopp
+CXXFLAGS += -pthread -DBOOST_ERROR_CODE_HEADER_ONLY -lcryptopp -I/opt/homebrew/Cellar/boost/1.78.0_1 -I/opt/homebrew/Cellar/boost/1.78.0_1/include
 LIBS =
 
 ifeq ($(UNAME_S), Linux) #LINUX
@@ -33,7 +33,7 @@ ifeq ($(UNAME_S), Darwin) #APPLE
 	#LIBS += -lglfw3
 	LIBS += -lglfw
 
-	CXXFLAGS += -I/usr/local/include -I/opt/local/include -I/opt/homebrew/include
+	CXXFLAGS += -I/usr/local/include -I/opt/local/include -I/opt/homebrew/include 
 	CFLAGS = $(CXXFLAGS)
 endif
 
@@ -92,6 +92,8 @@ build:
 docker:
 	g++ -Wall -g -std=c++17 -o router ./src/Router/router.cpp ./src/Miner/mine.cpp $(CXXFLAGS) $(LIBS) -I./src/Router -I./src/Miner
 
+mac: 
+	g++ -Wall -g -std=c++17 -o router ./src/Router/router.cpp ./src/Minier/mine.cpp  
 	
 # prosumer:
 # 	$(CXX) -o prosumer Prosumer.cpp helper.o, $(SRC_DIR)/Node/Server.cpp $(CXXFLAGS) $(LIBS) 
