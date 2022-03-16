@@ -20,7 +20,7 @@ namespace net
             unsigned char daddr[16] = "";
             std::time_t timestamp = 0;
 
-            bool operator ==(const net::Packet::header& a)
+            bool operator ==(const net::Packet::header& a) const
             {
                 return version == a.version && flowLabel == a.flowLabel && length == a.length && nextHeader == a.nextHeader &&
                         hopLimit == a.hopLimit && saddr == a.saddr && daddr == a.daddr && timestamp == a.timestamp;
@@ -31,7 +31,7 @@ namespace net
         struct payload
         {
             uint64_t payload;
-            bool operator ==(const net::Packet::payload& a)
+            bool operator ==(const net::Packet::payload& a) const
             {
                 return payload == a.payload;
             }
@@ -41,7 +41,7 @@ namespace net
         {
             net::Packet::header header;
             net::Packet::payload payload;
-            bool operator ==(const net::Packet::packet& a){
+            bool operator ==(const net::Packet::packet& a) const{
                 return header == a.header && payload == a.payload;
             }
         };

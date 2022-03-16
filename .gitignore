@@ -5,3 +5,6 @@
 /router_net.hpp
 test.cpp
 Trie
+src/Router/table.txt
+.DS_Store
+.gitignore
