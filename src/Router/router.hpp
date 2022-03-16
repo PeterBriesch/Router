@@ -224,17 +224,20 @@ class Router
     public:
     
     //constructor for accepting connection from client
-    Router(boost::asio::io_service& io_service, int port, std::string address, int port_con, boost::asio::io_service& router_ioservice): acceptor_(io_service, tcp::endpoint(boost::asio::ip::address::from_string("10.147.20.40"), port)), router_sock(router_ioservice)
-    {
+    Router(boost::asio::io_service& io_service, std::string ip, int port, std::string address, int port_con, boost::asio::io_service& router_ioservice): acceptor_(io_service, tcp::endpoint(boost::asio::ip::address::from_string(ip), port)), router_sock(router_ioservice)
+    {`
+
+        //making the address that the router is listening on can be reused
+        boost::asio::socket_base::reuse_address option(true);
+        acceptor_.set_option(option);
 
         cout << "Router LISTENING on " << acceptor_.local_endpoint() << endl;
 
         //  Connect to router 
         try{
-            if(acceptor_.local_endpoint().port() != 8080){
-                std::cout << address << port_con << std::endl;
-                router_connect(address, port_con);
-            }
+            std::cout << address << port_con << std::endl;
+            router_connect(address, port_con);
+            
         }catch(const std::exception &er){
             std::cerr << "Unable to connect to router: " << er.what() << endl;
         }

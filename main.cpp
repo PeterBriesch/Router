@@ -8,34 +8,34 @@ static void glfw_error_callback(int error, const char* description)
 
 int main(int argc, char const * argv[]){
 
+
     //Start router
     int port = 8080;    
     int port_con = 8080;
     std::string address = "10.147.20.7";
+    std::string ip = "10.147.20.227";
     if(argc > 1){
-        port = stoi(argv[1]);
-        address = argv[2];
-        port_con = stoi(argv[3]);
+        ip = argv[1];
+        port = stoi(argv[2]);
+        address = argv[3];
+        port_con = stoi(argv[4]);
     }
     boost::asio::io_service io_service;
     boost::asio::io_service router_ioservice;
 
 
     //Start router
-    printf("Starting Router connecting on Port %d, connecting on address %s and port %d \n", port, address.c_str(), port_con);
-    Router router(io_service, port, address, port_con, router_ioservice);  
+    printf("Starting Router starting on ip %s and Port %d, connecting to address %s and port %d \n", ip, port, address.c_str(), port_con);
+    Router router(io_service, ip, port, address, port_con, router_ioservice);  
 
     std::thread serv([&]()
-        {
-            io_service.run();
-        });
+    {
+        io_service.run();
+    });
     std::thread serv2([&]()
-        {
-            router_ioservice.run();
-        });
-
-    /* USER VARIABLES */
-    std::vector<std::string> output_bufs = {"0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0","0", "0",}; // output storage for cell functions
+    {
+        router_ioservice.run();
+    });
 
     // Setup window
     glfwSetErrorCallback(glfw_error_callback);
@@ -180,145 +180,13 @@ int main(int argc, char const * argv[]){
         */  
         if(show_routingTable){
 
-            show_table(router.getRoutingTable(), show_routingTable);
+            ShowTable(router, show_routingTable);
 
         }
         if(show_spreadsheet){
-            static bool no_titlebar = false;
-            static bool no_scrollbar = false;
-            static bool no_menu = false;
-            static bool no_move = false;
-            static bool no_resize = false;
-            static bool no_collapse = false;
-            static bool no_nav = false;
-            static bool no_background = false;
-            static bool no_bring_to_front = false;
-            static bool no_docking = true;
-            static bool unsaved_document = false;
-            bool update = true;
 
-            ImGuiWindowFlags window_flags = 0;
-            if (no_titlebar)        window_flags |= ImGuiWindowFlags_NoTitleBar;
-            if (no_scrollbar)       window_flags |= ImGuiWindowFlags_NoScrollbar;
-            if (!no_menu)           window_flags |= ImGuiWindowFlags_MenuBar;
-            if (no_move)            window_flags |= ImGuiWindowFlags_NoMove;
-            if (no_resize)          window_flags |= ImGuiWindowFlags_NoResize;
-            if (no_collapse)        window_flags |= ImGuiWindowFlags_NoCollapse;
-            if (no_nav)             window_flags |= ImGuiWindowFlags_NoNav;
-            if (no_background)      window_flags |= ImGuiWindowFlags_NoBackground;
-            if (no_bring_to_front)  window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus;
-            if (no_docking)         window_flags |= ImGuiWindowFlags_NoDocking;
-            if (unsaved_document)   window_flags |= ImGuiWindowFlags_UnsavedDocument;
+            ShowSheet(router, show_spreadsheet);
 
-            bool AutoScroll = true;
-
-            ImGui::Begin("spreadsheet", &show_my_window, window_flags);
-
-
-            /*
-                Spreadsheet tool for network programming and packet filtering
-            */
-            if(show_spreadsheet)
-            {        
-                // Window Setup
-                const float TEXT_BASE_HEIGHT = ImGui::GetTextLineHeightWithSpacing();
-                static ImGuiTableFlags flags2 = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable;
-                static ImVec2 cell_padding(0.0f, 0.0f);
-                static ImVec2 outer_size_value = ImVec2(0.0f, TEXT_BASE_HEIGHT * 30);
-
-                // Get packet from router
-                static net::Packet::packet pkt;
-                update = router.ShowPacket(pkt);
-                ImGui::RadioButton("update", &update);
-
-                // Start table
-                // if(ImGui::BeginTable("row header", 6, flags2)){
-                //     ImGui::TableSetupColumn("");
-                //     ImGui::TableHeadersRow();
-                    
-                //     for(int i = 0; i < 6; i++)
-                //     {
-                //         ImGui::TableNextColumn();
-                //         ImGui::TableNextRow();
-
-                //         ImGui::Text(to_string(i).c_str());
-                //     }
-
-                //     ImGui::EndTable();
-                // }
-                // ImGui::SameLine();
-                ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, cell_padding);  
-                if (ImGui::BeginTable("table_padding_2", 12, flags2))
-                {
-
-                    //Set up columns
-                    ImGui::PushStyleColor(ImGuiCol_TableHeaderBg, IM_COL32(0,0,0,255));
-                    ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(151,255,34,255));
-                    ImGui::TableSetupScrollFreeze(1, 1);
-                    ImGui::TableSetupColumn("", ImGuiTableColumnFlags_NoHide);
-                    for (int i = 0; i < 11; i++)
-                    {
-                        char header = i+0x41;
-                        ImGui::TableSetupColumn(&header);
-                    }
-                    // ImGui::TableSetupColumn("No.", ImGuiTableColumnFlags_WidthFixed);
-                    // ImGui::TableSetupColumn("Time Stamp", ImGuiTableColumnFlags_WidthFixed);
-                    // ImGui::TableSetupColumn("Length", ImGuiTableColumnFlags_WidthFixed);
-                    // ImGui::TableSetupColumn("Source", ImGuiTableColumnFlags_WidthFixed);
-                    // ImGui::TableSetupColumn("Destination", ImGuiTableColumnFlags_WidthStretch);
-                    // ImGui::TableSetupColumn("Protocol", ImGuiTableColumnFlags_WidthStretch);
-                    ImGui::TableHeadersRow();
-                    ImGui::PopStyleColor(2);
-
-                    static char text_bufs[6 * 12][128]; // text storage for cells
-                    
-                    // Traverse spreadsheet
-                    for (int cell = 0; cell < 6 * 12; cell++)
-                    {
-                        ImGui::PushStyleColor(ImGuiCol_TableRowBg, IM_COL32(0,0,0,255));
-                        ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, IM_COL32(0,0,0,255));
-
-                        ImGui::TableNextColumn();
-                        ImGui::SetNextItemWidth(-FLT_MIN);
-                        ImGui::PushID(cell);
-                        
-                        //use regex to find function in text buffer
-                        std::regex e ("Count\\([a-fA-F0-9]*\\)");
-                        if(cell%12 == 0){
-
-                            ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(151,255,34,255));
-                            ImGui::Text("%d", cell/12);
-                            ImGui::PopStyleColor(1);
-                        }
-                        else if(regex_match(text_bufs[cell], e)){
-
-                            string match (text_bufs[cell]);
-
-                            char temp[INET6_ADDRSTRLEN];
-                            inet_ntop(AF_INET6, pkt.header.daddr, temp, INET6_ADDRSTRLEN);
-                            string dstaddress(temp);
-
-                            output_bufs[cell] = CountPacket(match, dstaddress, update, output_bufs[cell]); //function used to count the specific packets (result stored in output_bufs)
-
-                            ImGui::Text(output_bufs[cell].c_str());
-
-                        }
-                        else{
-                            ImGui::PushStyleColor(ImGuiCol_FrameBg, IM_COL32(69,69,69,150));
-                            ImGui::InputText("##cell", text_bufs[cell], IM_ARRAYSIZE(text_bufs[cell]));
-                            ImGui::PopStyleColor(1);
-                        }
-
-                        ImGui::PopStyleColor(2);
-                        ImGui::PopID();
-                        
-                    }
-                    
-                    ImGui::EndTable();
-                }
-                ImGui::PopStyleVar();
-            }
-            ImGui::End();
         }
 
         if(show_my_window)
@@ -382,11 +250,6 @@ int main(int argc, char const * argv[]){
                 ImGui::EndMenuBar();
             }
 
-            
-
-
-
-
             /*
                 Analyiser for viewing the stream of packets 
                 coming through the router
@@ -399,7 +262,7 @@ int main(int argc, char const * argv[]){
                 static int port = 8081;
                 static int node_port = 2180;
                 static int newport = 8080;
-                static std::string address = "10.147.20.40";
+                static std::string address = "10.147.20.227";
                 if(ImGui::Button("Start Prosumer")){
                     char command[1024];
                     sprintf(command, "gnome-terminal -e 'sh -c \"./prosumer %d %d %s %d\"'", node_port, port, address.c_str(), newport);
